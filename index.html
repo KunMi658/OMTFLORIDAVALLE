@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>OMT - Curso Interactivo</title>
+    <link rel="stylesheet" href="styles.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+</head>
+<body>
+    <div id="app">
+        <!-- SPLASH SCREEN -->
+        <div id="screen-splash" class="screen active">
+            <div class="splash-container">
+                <div class="logo-shield">🛡️</div>
+                <h1 class="splash-title">OMT</h1>
+                <p class="splash-subtitle">Operadores de Medios Tecnológicos</p>
+                <p class="splash-desc">Curso de Formación en Seguridad Privada</p>
+                <div class="splash-badge">CARSP • Colombia</div>
+                <div class="role-buttons">
+                    <button class="btn btn-student" onclick="App.showStudentLogin()">
+                        <span class="btn-icon">🎓</span>
+                        <span class="btn-label">Soy Estudiante</span>
+                    </button>
+                    <button class="btn btn-professor" onclick="App.showProfessorLogin()">
+                        <span class="btn-icon">👨‍🏫</span>
+                        <span class="btn-label">Acceso Profesor</span>
+                    </button>
+                </div>
+                <div class="splash-footer">16 Horas • 4 Clases • Certificación</div>
+            </div>
+        </div>
+
+        <!-- STUDENT LOGIN -->
+        <div id="screen-student-login" class="screen">
+            <div class="login-container">
+                <button class="back-btn" onclick="App.goSplash()">← Volver</button>
+                <div class="login-icon">🎓</div>
+                <h2>Registro de Estudiante</h2>
+                <p>Ingresa tu nombre completo para comenzar</p>
+                <input type="text" id="student-name" placeholder="Tu nombre completo" class="input-field" autocomplete="off">
+                <button class="btn btn-primary btn-block" onclick="App.studentEnter()">Ingresar al Curso</button>
+                <div id="student-login-error" class="error-msg"></div>
+            </div>
+        </div>
+
+        <!-- PROFESSOR LOGIN -->
+        <div id="screen-professor-login" class="screen">
+            <div class="login-container">
+                <button class="back-btn" onclick="App.goSplash()">← Volver</button>
+                <div class="login-icon">🔐</div>
+                <h2>Acceso Administrativo</h2>
+                <p>Ingresa el código de acceso</p>
+                <input type="password" id="professor-pass" placeholder="Código de acceso" class="input-field" autocomplete="off">
+                <button class="btn btn-primary btn-block" onclick="App.professorEnter()">Acceder</button>
+                <div id="professor-login-error" class="error-msg"></div>
+            </div>
+        </div>
+
+        <!-- CLASS SELECTOR (both roles) -->
+        <div id="screen-class-select" class="screen">
+            <div class="class-select-container">
+                <div class="select-header">
+                    <button class="back-btn" onclick="App.goSplash()">← Salir</button>
+                    <div id="user-badge" class="user-badge"></div>
+                </div>
+                <h2 class="select-title">Selecciona la Clase</h2>
+                <div id="class-grid" class="class-grid"></div>
+            </div>
+        </div>
+
+        <!-- LESSON VIEW (Student) -->
+        <div id="screen-lesson" class="screen">
+            <div class="lesson-container">
+                <div class="lesson-header">
+                    <button class="back-btn" onclick="App.backToClasses()">← Clases</button>
+                    <div class="lesson-progress">
+                        <span id="slide-counter">1/10</span>
+                        <div class="progress-bar"><div id="progress-fill" class="progress-fill"></div></div>
+                    </div>
+                    <div id="score-display" class="score-display">⭐ 0</div>
+                </div>
+                <div id="slide-content" class="slide-content"></div>
+                <div class="lesson-nav">
+                    <button id="btn-prev" class="btn btn-nav" onclick="App.prevSlide()">← Anterior</button>
+                    <button id="btn-next" class="btn btn-nav btn-primary" onclick="App.nextSlide()">Siguiente →</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- PROFESSOR LESSON VIEW -->
+        <div id="screen-professor-lesson" class="screen">
+            <div class="lesson-container professor-view">
+                <div class="lesson-header">
+                    <button class="back-btn" onclick="App.backToClasses()">← Clases</button>
+                    <div class="lesson-progress">
+                        <span id="prof-slide-counter">1/10</span>
+                        <div class="progress-bar"><div id="prof-progress-fill" class="progress-fill"></div></div>
+                    </div>
+                    <div class="prof-badge">👨‍🏫 GUÍA</div>
+                </div>
+                <div id="prof-slide-content" class="slide-content"></div>
+                <div class="lesson-nav">
+                    <button id="prof-btn-prev" class="btn btn-nav" onclick="App.profPrevSlide()">← Anterior</button>
+                    <button id="prof-btn-next" class="btn btn-nav btn-primary" onclick="App.profNextSlide()">Siguiente →</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- RESULTS SCREEN -->
+        <div id="screen-results" class="screen">
+            <div class="results-container" id="results-content"></div>
+        </div>
+    </div>
+
+    <script src="content.js"></script>
+    <script src="app.js"></script>
+</body>
+</html>
