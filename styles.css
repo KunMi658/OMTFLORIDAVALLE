@@ -137,15 +137,15 @@ body::before {
 .logo-shield {
     margin-bottom: 10px;
     animation: pulse 3s infinite;
+    display: flex;
+    justify-content: center;
 }
 
 .logo-img {
-    width: 100px;
-    height: 100px;
-    border-radius: 50%;
-    object-fit: cover;
-    border: 3px solid rgba(26, 115, 232, 0.4);
-    box-shadow: 0 0 20px rgba(26, 115, 232, 0.3);
+    width: 120px;
+    height: 120px;
+    object-fit: contain;
+    filter: drop-shadow(0 0 15px rgba(26, 115, 232, 0.4));
 }
 
 .splash-title {
