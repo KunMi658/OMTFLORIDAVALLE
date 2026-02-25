@@ -1,18 +1,22 @@
 <!DOCTYPE html>
 <html lang="es">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>OMT - Curso Interactivo</title>
     <link rel="stylesheet" href="styles.css">
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap"
+        rel="stylesheet">
 </head>
+
 <body>
     <div id="app">
         <!-- SPLASH SCREEN -->
         <div id="screen-splash" class="screen active">
             <div class="splash-container">
-                <div class="logo-shield">🛡️</div>
+                <div class="logo-shield"><img src="https://i.ibb.co/5XNnsPyW/LOGO-ACADEMIA.jpg" alt="Logo Academia"
+                        class="logo-img"></div>
                 <h1 class="splash-title">OMT</h1>
                 <p class="splash-subtitle">Operadores de Medios Tecnológicos</p>
                 <p class="splash-desc">Curso de Formación en Seguridad Privada</p>
@@ -27,7 +31,7 @@
                         <span class="btn-label">Acceso Profesor</span>
                     </button>
                 </div>
-                <div class="splash-footer">16 Horas • 4 Clases • Certificación</div>
+
             </div>
         </div>
 
@@ -38,7 +42,8 @@
                 <div class="login-icon">🎓</div>
                 <h2>Registro de Estudiante</h2>
                 <p>Ingresa tu nombre completo para comenzar</p>
-                <input type="text" id="student-name" placeholder="Tu nombre completo" class="input-field" autocomplete="off">
+                <input type="text" id="student-name" placeholder="Tu nombre completo" class="input-field"
+                    autocomplete="off">
                 <button class="btn btn-primary btn-block" onclick="App.studentEnter()">Ingresar al Curso</button>
                 <div id="student-login-error" class="error-msg"></div>
             </div>
@@ -51,7 +56,8 @@
                 <div class="login-icon">🔐</div>
                 <h2>Acceso Administrativo</h2>
                 <p>Ingresa el código de acceso</p>
-                <input type="password" id="professor-pass" placeholder="Código de acceso" class="input-field" autocomplete="off">
+                <input type="password" id="professor-pass" placeholder="Código de acceso" class="input-field"
+                    autocomplete="off">
                 <button class="btn btn-primary btn-block" onclick="App.professorEnter()">Acceder</button>
                 <div id="professor-login-error" class="error-msg"></div>
             </div>
@@ -76,7 +82,9 @@
                     <button class="back-btn" onclick="App.backToClasses()">← Clases</button>
                     <div class="lesson-progress">
                         <span id="slide-counter">1/10</span>
-                        <div class="progress-bar"><div id="progress-fill" class="progress-fill"></div></div>
+                        <div class="progress-bar">
+                            <div id="progress-fill" class="progress-fill"></div>
+                        </div>
                     </div>
                     <div id="score-display" class="score-display">⭐ 0</div>
                 </div>
@@ -95,14 +103,17 @@
                     <button class="back-btn" onclick="App.backToClasses()">← Clases</button>
                     <div class="lesson-progress">
                         <span id="prof-slide-counter">1/10</span>
-                        <div class="progress-bar"><div id="prof-progress-fill" class="progress-fill"></div></div>
+                        <div class="progress-bar">
+                            <div id="prof-progress-fill" class="progress-fill"></div>
+                        </div>
                     </div>
                     <div class="prof-badge">👨‍🏫 GUÍA</div>
                 </div>
                 <div id="prof-slide-content" class="slide-content"></div>
                 <div class="lesson-nav">
                     <button id="prof-btn-prev" class="btn btn-nav" onclick="App.profPrevSlide()">← Anterior</button>
-                    <button id="prof-btn-next" class="btn btn-nav btn-primary" onclick="App.profNextSlide()">Siguiente →</button>
+                    <button id="prof-btn-next" class="btn btn-nav btn-primary" onclick="App.profNextSlide()">Siguiente
+                        →</button>
                 </div>
             </div>
         </div>
@@ -116,4 +127,5 @@
     <script src="content.js"></script>
     <script src="app.js"></script>
 </body>
+
 </html>
