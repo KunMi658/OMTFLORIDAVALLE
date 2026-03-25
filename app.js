@@ -1,511 +1,688 @@
 // ============================================
-// APP.JS — Lógica principal del curso OMT
+// APP.JS — OMT Aula Interactiva
+// Módulos: App (splash/nav) | ProfControl | StudentLive | ProjectorView
 // ============================================
+
+import { Sync } from './sync.js';
+
+// ---- Utilidades ----
+function normalize(str) {
+  return str.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9]/g, '_');
+}
+
+function showScreen(id) {
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+  const el = document.getElementById(id);
+  if (el) el.classList.add('active');
+}
+
+// ========================================
+// APP — Navegación principal
+// ========================================
 const App = {
-    role: null, // 'student' | 'professor'
-    studentName: '',
-    currentClass: null,
-    currentSlide: 0,
-    profCurrentSlide: 0,
-    scores: {},
-    answeredExercises: {},
+  goSplash() {
+    Sync.removeAllListeners();
+    showScreen('screen-splash');
+  },
 
-    // ---- NAVIGATION ----
-    showScreen(id) {
-        document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
-        const el = document.getElementById(id);
-        if (el) el.classList.add('active');
-    },
-    goSplash() { this.showScreen('screen-splash'); },
+  showStudentLogin() {
+    showScreen('screen-student-login');
+    setTimeout(() => document.getElementById('student-name').focus(), 100);
+  },
 
-    showStudentLogin() { this.showScreen('screen-student-login'); document.getElementById('student-name').focus(); },
-    showProfessorLogin() { this.showScreen('screen-professor-login'); document.getElementById('professor-pass').focus(); },
+  showProfessorLogin() {
+    showScreen('screen-professor-login');
+    setTimeout(() => document.getElementById('professor-pass').focus(), 100);
+  },
 
-    studentEnter() {
-        const name = document.getElementById('student-name').value.trim();
-        if (!name || name.length < 2) {
-            document.getElementById('student-login-error').textContent = 'Ingresa tu nombre completo';
-            return;
-        }
-        this.role = 'student';
-        this.studentName = name;
-        this.loadStudentData();
-        this.showClassSelect();
-    },
+  showProjectorMode() {
+    showScreen('screen-projector');
+    ProjectorView.init();
+  },
 
-    professorEnter() {
-        const pass = document.getElementById('professor-pass').value;
-        if (pass !== '6588242') {
-            document.getElementById('professor-login-error').textContent = 'Código incorrecto';
-            return;
-        }
-        this.role = 'professor';
-        this.showClassSelect();
-    },
-
-    // ---- CLASS SELECTION ----
-    showClassSelect() {
-        const badge = document.getElementById('user-badge');
-        badge.textContent = this.role === 'student' ? `🎓 ${this.studentName}` : '👨‍🏫 Profesor';
-        const grid = document.getElementById('class-grid');
-        grid.innerHTML = '';
-        COURSE_DATA.classes.forEach(c => {
-            const progress = this.getClassProgress(c.id);
-            const card = document.createElement('div');
-            card.className = 'class-card';
-            card.style.borderLeftColor = c.color;
-            card.onclick = () => this.startClass(c.id);
-            card.innerHTML = `
-        <span class="class-card-icon">${c.icon}</span>
-        <div class="class-card-num">${c.num}</div>
-        <div class="class-card-title">${c.title}</div>
-        <div class="class-card-desc">${c.desc}</div>
-        ${this.role === 'student' ? `<div class="class-card-progress">
-          <div class="progress-bar"><div class="progress-fill" style="width:${progress.pct}%"></div></div>
-          <div class="class-card-score">⭐ ${progress.score} pts | ${progress.pct}% completado</div>
-        </div>` : ''}`;
-            grid.appendChild(card);
-        });
-        if (this.role === 'student') {
-            const histBtn = document.createElement('button');
-            histBtn.className = 'btn btn-nav btn-block';
-            histBtn.style.marginTop = '16px';
-            histBtn.innerHTML = '📊 Ver Mi Historial Completo';
-            histBtn.onclick = () => this.showResults();
-            grid.appendChild(histBtn);
-        }
-        this.showScreen('screen-class-select');
-    },
-
-    startClass(id) {
-        this.currentClass = COURSE_DATA.classes.find(c => c.id === id);
-        if (!this.currentClass) return;
-        if (this.role === 'student') {
-            this.currentSlide = 0;
-            this.renderStudentSlide();
-            this.showScreen('screen-lesson');
-        } else {
-            this.profCurrentSlide = 0;
-            this.renderProfessorSlide();
-            this.showScreen('screen-professor-lesson');
-        }
-    },
-
-    backToClasses() { this.showClassSelect(); },
-
-    // ---- STUDENT SLIDES ----
-    renderStudentSlide() {
-        const slides = this.currentClass.studentSlides;
-        const total = slides.length;
-        const idx = this.currentSlide;
-        const slide = slides[idx];
-        document.getElementById('slide-counter').textContent = `${idx + 1}/${total}`;
-        document.getElementById('progress-fill').style.width = `${((idx + 1) / total) * 100}%`;
-        document.getElementById('score-display').textContent = `⭐ ${this.getClassScore(this.currentClass.id)}`;
-        const container = document.getElementById('slide-content');
-        container.style.animation = 'none';
-        container.offsetHeight; // reflow
-        container.style.animation = 'slideUp 0.3s ease';
-
-        if (slide.type === 'info') {
-            container.innerHTML = slide.html;
-        } else if (slide.type === 'exercise') {
-            container.innerHTML = this.renderExercise(slide, idx);
-        }
-
-        document.getElementById('btn-prev').disabled = idx === 0;
-        const nextBtn = document.getElementById('btn-next');
-        if (idx === total - 1) {
-            nextBtn.textContent = '🏁 Finalizar Clase';
-            nextBtn.onclick = () => this.finishClass();
-        } else {
-            nextBtn.textContent = 'Siguiente →';
-            nextBtn.onclick = () => this.nextSlide();
-        }
-    },
-
-    nextSlide() {
-        if (this.currentSlide < this.currentClass.studentSlides.length - 1) {
-            this.currentSlide++;
-            this.renderStudentSlide();
-            document.getElementById('slide-content').scrollTop = 0;
-        }
-    },
-    prevSlide() {
-        if (this.currentSlide > 0) {
-            this.currentSlide--;
-            this.renderStudentSlide();
-        }
-    },
-
-    // ---- PROFESSOR SLIDES ----
-    renderProfessorSlide() {
-        const slides = this.currentClass.professorSlides;
-        const total = slides.length;
-        const idx = this.profCurrentSlide;
-        document.getElementById('prof-slide-counter').textContent = `${idx + 1}/${total}`;
-        document.getElementById('prof-progress-fill').style.width = `${((idx + 1) / total) * 100}%`;
-        document.getElementById('prof-slide-content').innerHTML = slides[idx].html;
-        document.getElementById('prof-btn-prev').disabled = idx === 0;
-        const nextBtn = document.getElementById('prof-btn-next');
-        nextBtn.textContent = idx === total - 1 ? '← Volver a Clases' : 'Siguiente →';
-        nextBtn.onclick = idx === total - 1 ? () => this.backToClasses() : () => this.profNextSlide();
-    },
-    profNextSlide() {
-        if (this.profCurrentSlide < this.currentClass.professorSlides.length - 1) {
-            this.profCurrentSlide++;
-            this.renderProfessorSlide();
-        }
-    },
-    profPrevSlide() {
-        if (this.profCurrentSlide > 0) {
-            this.profCurrentSlide--;
-            this.renderProfessorSlide();
-        }
-    },
-
-    // ---- EXERCISE RENDERING ----
-    renderExercise(slide, slideIdx) {
-        const key = `c${this.currentClass.id}_s${slideIdx}`;
-        const prev = this.answeredExercises[key];
-        let html = `<div class="exercise-box"><h4>✍️ EJERCICIO</h4><p class="exercise-q">${slide.question}</p>`;
-
-        if (slide.exerciseType === 'text') {
-            html += `<textarea class="exercise-input" id="ex-input-${slideIdx}" placeholder="Escribe tu respuesta aquí..." ${prev ? 'disabled' : ''}>${prev ? prev.answer : ''}</textarea>`;
-            if (!prev) html += `<button class="exercise-submit" onclick="App.submitText(${slideIdx})">Enviar Respuesta</button>`;
-        } else if (slide.exerciseType === 'multiple') {
-            html += `<div class="exercise-options">`;
-            slide.options.forEach((opt, i) => {
-                let cls = 'exercise-option';
-                if (prev) {
-                    if (i === slide.correctIndex) cls += ' correct';
-                    else if (i === prev.selected && i !== slide.correctIndex) cls += ' wrong';
-                }
-                html += `<button class="${cls}" ${prev ? 'disabled' : ''} onclick="App.submitMultiple(${slideIdx},${i})">${opt}</button>`;
-            });
-            html += `</div>`;
-        } else if (slide.exerciseType === 'order') {
-            html += this.renderOrderExercise(slide, slideIdx, prev);
-        } else if (slide.exerciseType === 'classify') {
-            html += this.renderClassifyExercise(slide, slideIdx, prev);
-        }
-
-        if (prev) {
-            const fbClass = prev.score >= slide.points ? 'feedback-correct' : prev.score > 0 ? 'feedback-partial' : 'feedback-wrong';
-            const icon = prev.score >= slide.points ? '✅' : prev.score > 0 ? '⚡' : '❌';
-            html += `<div class="exercise-feedback ${fbClass}">${icon} Puntos: ${prev.score}/${slide.points}<br>${slide.correctAnswer || slide.explanation || ''}</div>`;
-        }
-
-        html += `<div id="ex-feedback-${slideIdx}"></div></div>`;
-        return html;
-    },
-
-    renderOrderExercise(slide, slideIdx, prev) {
-        const items = prev ? prev.finalOrder : [...slide.items];
-        let html = `<ul class="order-list" id="order-list-${slideIdx}">`;
-        items.forEach((item, i) => {
-            const correctMark = prev ? (item === slide.correctOrder[i] ? '✅' : '❌') : '';
-            html += `<li class="order-item" draggable="${prev ? 'false' : 'true'}" data-idx="${i}" 
-        ${prev ? '' : `ontouchstart="App.touchDragStart(event,${slideIdx})" ontouchmove="App.touchDragMove(event,${slideIdx})" ontouchend="App.touchDragEnd(event,${slideIdx})"
-        ondragstart="App.dragStart(event)" ondragover="App.dragOver(event)" ondrop="App.drop(event,${slideIdx})"`}>
-        <span class="grip">${prev ? correctMark : '⠿'}</span> ${item}</li>`;
-        });
-        html += `</ul>`;
-        if (!prev) html += `<button class="exercise-submit" onclick="App.submitOrder(${slideIdx})">Confirmar Orden</button>`;
-        return html;
-    },
-
-    renderClassifyExercise(slide, slideIdx, prev) {
-        let html = '';
-        slide.items.forEach((item, i) => {
-            const selected = prev ? prev.answers[i] : null;
-            const isCorrect = prev ? selected === item.answer : null;
-            html += `<div style="margin:10px 0; padding:12px; background:var(--bg-glass); border-radius:10px; ${prev ? (isCorrect ? 'border:1px solid var(--green)' : 'border:1px solid var(--red)') : 'border:1px solid rgba(255,255,255,0.08)'}">
-        <p style="font-size:13px; margin-bottom:8px;">${prev ? (isCorrect ? '✅' : '❌') : ''} ${item.text}</p>
-        <div style="display:flex; gap:6px; flex-wrap:wrap;">`;
-            slide.options.forEach(opt => {
-                const isSelected = selected === opt;
-                const btnStyle = prev
-                    ? (opt === item.answer ? 'border-color:var(--green);background:rgba(0,200,83,0.15);' : (isSelected && !isCorrect ? 'border-color:var(--red);opacity:0.5;' : 'opacity:0.4;'))
-                    : (isSelected ? 'border-color:var(--accent);background:rgba(26,115,232,0.15);' : '');
-                html += `<button class="exercise-option" style="flex:1;min-width:auto;padding:8px;font-size:12px;${btnStyle}" 
-          ${prev ? 'disabled' : ''} onclick="App.selectClassify(${slideIdx},${i},'${opt}')">${opt}</button>`;
-            });
-            html += `</div></div>`;
-        });
-        if (!prev) html += `<button class="exercise-submit" onclick="App.submitClassify(${slideIdx})">Confirmar Respuestas</button>`;
-        return html;
-    },
-
-    // ---- EXERCISE SUBMISSION ----
-    classifySelections: {},
-
-    selectClassify(slideIdx, itemIdx, option) {
-        if (!this.classifySelections[slideIdx]) this.classifySelections[slideIdx] = {};
-        this.classifySelections[slideIdx][itemIdx] = option;
-        this.renderStudentSlide();
-    },
-
-    submitClassify(slideIdx) {
-        const slide = this.currentClass.studentSlides[slideIdx];
-        const key = `c${this.currentClass.id}_s${slideIdx}`;
-        const answers = this.classifySelections[slideIdx] || {};
-        if (Object.keys(answers).length < slide.items.length) {
-            this.showFeedback(slideIdx, 'feedback-wrong', '⚠️ Clasifica todos los elementos antes de enviar.');
-            return;
-        }
-        let correct = 0;
-        slide.items.forEach((item, i) => { if (answers[i] === item.answer) correct++; });
-        const score = Math.round((correct / slide.items.length) * slide.points);
-        this.saveAnswer(key, { answers, score });
-        this.renderStudentSlide();
-    },
-
-    submitText(slideIdx) {
-        const input = document.getElementById(`ex-input-${slideIdx}`);
-        const answer = input.value.trim();
-        if (!answer || answer.length < 3) {
-            this.showFeedback(slideIdx, 'feedback-wrong', '⚠️ Escribe una respuesta más completa.');
-            return;
-        }
-        const slide = this.currentClass.studentSlides[slideIdx];
-        const key = `c${this.currentClass.id}_s${slideIdx}`;
-        const score = this.evaluateText(answer, slide);
-        this.saveAnswer(key, { answer, score });
-        this.renderStudentSlide();
-    },
-
-    evaluateText(answer, slide) {
-        const normalized = this.normalize(answer);
-        let matched = 0;
-        const kws = slide.keywords || [];
-        kws.forEach(kw => { if (normalized.includes(this.normalize(kw))) matched++; });
-        const ratio = kws.length > 0 ? matched / slide.minKeywords : 0;
-        if (ratio >= 1) return slide.points;
-        if (ratio >= 0.5) return Math.round(slide.points * 0.7);
-        if (matched > 0) return Math.round(slide.points * 0.4);
-        // check if answer is at least 15 chars (some effort)
-        if (answer.length > 15) return Math.round(slide.points * 0.2);
-        return 0;
-    },
-
-    normalize(str) {
-        return str.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9\s]/g, '');
-    },
-
-    submitMultiple(slideIdx, optionIdx) {
-        const slide = this.currentClass.studentSlides[slideIdx];
-        const key = `c${this.currentClass.id}_s${slideIdx}`;
-        const score = optionIdx === slide.correctIndex ? slide.points : 0;
-        this.saveAnswer(key, { selected: optionIdx, score });
-        this.renderStudentSlide();
-    },
-
-    // ---- DRAG & DROP (ORDER) ----
-    draggedItem: null,
-    dragStart(e) { this.draggedItem = e.target; e.target.classList.add('dragging'); },
-    dragOver(e) { e.preventDefault(); },
-    drop(e, slideIdx) {
-        e.preventDefault();
-        if (!this.draggedItem) return;
-        this.draggedItem.classList.remove('dragging');
-        const list = document.getElementById(`order-list-${slideIdx}`);
-        const items = [...list.querySelectorAll('.order-item')];
-        const target = e.target.closest('.order-item');
-        if (target && target !== this.draggedItem) {
-            const targetIdx = items.indexOf(target);
-            const dragIdx = items.indexOf(this.draggedItem);
-            if (dragIdx < targetIdx) target.after(this.draggedItem);
-            else target.before(this.draggedItem);
-        }
-        this.draggedItem = null;
-    },
-
-    // Touch drag for mobile
-    touchDragEl: null,
-    touchDragClone: null,
-    touchStartY: 0,
-    touchDragStart(e, slideIdx) {
-        this.touchDragEl = e.target.closest('.order-item');
-        this.touchStartY = e.touches[0].clientY;
-        this.touchDragEl.style.opacity = '0.5';
-    },
-    touchDragMove(e, slideIdx) {
-        e.preventDefault();
-        if (!this.touchDragEl) return;
-        const touch = e.touches[0];
-        const list = document.getElementById(`order-list-${slideIdx}`);
-        const items = [...list.querySelectorAll('.order-item')];
-        const target = document.elementFromPoint(touch.clientX, touch.clientY);
-        const targetItem = target ? target.closest('.order-item') : null;
-        if (targetItem && targetItem !== this.touchDragEl) {
-            const tIdx = items.indexOf(targetItem);
-            const dIdx = items.indexOf(this.touchDragEl);
-            if (dIdx < tIdx) targetItem.after(this.touchDragEl);
-            else targetItem.before(this.touchDragEl);
-        }
-    },
-    touchDragEnd(e, slideIdx) {
-        if (this.touchDragEl) this.touchDragEl.style.opacity = '1';
-        this.touchDragEl = null;
-    },
-
-    submitOrder(slideIdx) {
-        const slide = this.currentClass.studentSlides[slideIdx];
-        const key = `c${this.currentClass.id}_s${slideIdx}`;
-        const list = document.getElementById(`order-list-${slideIdx}`);
-        const items = [...list.querySelectorAll('.order-item')];
-        const finalOrder = items.map(li => li.textContent.replace('⠿', '').trim());
-        let correct = 0;
-        finalOrder.forEach((item, i) => { if (item === slide.correctOrder[i]) correct++; });
-        const score = Math.round((correct / slide.correctOrder.length) * slide.points);
-        this.saveAnswer(key, { finalOrder, score });
-        this.renderStudentSlide();
-    },
-
-    showFeedback(slideIdx, cls, msg) {
-        const el = document.getElementById(`ex-feedback-${slideIdx}`);
-        if (el) { el.innerHTML = `<div class="exercise-feedback ${cls}">${msg}</div>`; }
-    },
-
-    // ---- SCORING & STORAGE ----
-    saveAnswer(key, data) {
-        this.answeredExercises[key] = data;
-        if (!this.scores[this.currentClass.id]) this.scores[this.currentClass.id] = {};
-        this.scores[this.currentClass.id][key] = data.score;
-        this.saveStudentData();
-    },
-
-    getClassScore(classId) {
-        if (!this.scores[classId]) return 0;
-        return Object.values(this.scores[classId]).reduce((a, b) => a + b, 0);
-    },
-
-    getClassProgress(classId) {
-        const cls = COURSE_DATA.classes.find(c => c.id === classId);
-        if (!cls) return { pct: 0, score: 0 };
-        const exercises = cls.studentSlides.filter(s => s.type === 'exercise');
-        const total = exercises.length;
-        let answered = 0;
-        cls.studentSlides.forEach((s, i) => {
-            if (s.type === 'exercise' && this.answeredExercises[`c${classId}_s${i}`]) answered++;
-        });
-        return {
-            pct: total > 0 ? Math.round((answered / total) * 100) : 0,
-            score: this.getClassScore(classId)
-        };
-    },
-
-    // ---- FINISH CLASS ----
-    finishClass() {
-        const classId = this.currentClass.id;
-        const progress = this.getClassProgress(classId);
-        const maxScore = this.currentClass.studentSlides.filter(s => s.type === 'exercise').reduce((a, s) => a + s.points, 0);
-        const pct = maxScore > 0 ? Math.round((progress.score / maxScore) * 100) : 0;
-        const scoreClass = pct >= 80 ? 'high' : pct >= 50 ? 'mid' : 'low';
-        const emoji = pct >= 80 ? '🏆' : pct >= 50 ? '👍' : '📚';
-
-        // Save to history
-        this.saveToHistory(classId, progress.score, maxScore, pct);
-
-        const container = document.getElementById('results-content');
-        container.innerHTML = `
-      <div style="font-size:48px;margin-bottom:10px;">${emoji}</div>
-      <h2>${this.currentClass.title}</h2>
-      <p style="color:var(--text-dim);margin:8px 0 20px;">Resultados de ${this.studentName}</p>
-      <div class="result-card">
-        <h4>Puntuación Final</h4>
-        <div class="result-score ${scoreClass}">${progress.score} / ${maxScore}</div>
-        <div class="result-detail">${pct}% de aciertos</div>
-        <div class="progress-bar" style="margin-top:10px;"><div class="progress-fill" style="width:${pct}%"></div></div>
-      </div>
-      <div class="result-card">
-        <h4>Interpretación</h4>
-        <p class="result-detail">${pct >= 80 ? '¡Excelente! Dominas los conceptos de esta clase.' : pct >= 50 ? 'Buen trabajo. Repasa los conceptos que fallaste.' : 'Necesitas repasar. Revisa el material y vuelve a intentarlo.'}</p>
-      </div>
-      <button class="btn btn-primary btn-block" style="margin-top:16px;" onclick="App.showClassSelect()">← Volver a las Clases</button>`;
-        this.showScreen('screen-results');
-    },
-
-    // ---- HISTORY ----
-    saveToHistory(classId, score, maxScore, pct) {
-        const history = this.getHistory();
-        history.push({
-            name: this.studentName,
-            classId,
-            className: this.currentClass.title,
-            score, maxScore, pct,
-            date: new Date().toLocaleString('es-CO')
-        });
-        localStorage.setItem('omt_history_' + this.normalize(this.studentName), JSON.stringify(history));
-    },
-
-    getHistory() {
-        const key = 'omt_history_' + this.normalize(this.studentName);
-        try { return JSON.parse(localStorage.getItem(key)) || []; } catch { return []; }
-    },
-
-    showResults() {
-        const history = this.getHistory();
-        const container = document.getElementById('results-content');
-        let html = `<div style="font-size:36px;margin-bottom:10px;">📊</div>
-      <h2>Historial de ${this.studentName}</h2>
-      <p style="color:var(--text-dim);margin:8px 0 20px;">${history.length} registros acumulados</p>`;
-
-        if (history.length === 0) {
-            html += `<div class="result-card"><p class="result-detail">Aún no has completado ninguna clase.</p></div>`;
-        } else {
-            // Summary per class
-            COURSE_DATA.classes.forEach(c => {
-                const classHistory = history.filter(h => h.classId === c.id);
-                if (classHistory.length > 0) {
-                    const best = Math.max(...classHistory.map(h => h.pct));
-                    html += `<div class="result-card">
-            <h4>${c.icon} ${c.title}</h4>
-            <div class="result-detail">Intentos: ${classHistory.length} | Mejor: ${best}%</div>`;
-                    classHistory.forEach(h => {
-                        html += `<div class="history-item"><span>${h.date}</span><span style="color:${h.pct >= 80 ? 'var(--green)' : h.pct >= 50 ? 'var(--yellow)' : 'var(--red)'}">${h.score}/${h.maxScore} (${h.pct}%)</span></div>`;
-                    });
-                    html += `</div>`;
-                }
-            });
-        }
-
-        html += `<button class="btn btn-primary btn-block" style="margin-top:16px;" onclick="App.showClassSelect()">← Volver a las Clases</button>`;
-        container.innerHTML = html;
-        this.showScreen('screen-results');
-    },
-
-    // ---- PERSISTENCE ----
-    saveStudentData() {
-        const key = 'omt_student_' + this.normalize(this.studentName);
-        const data = { scores: this.scores, answered: this.answeredExercises, classify: this.classifySelections };
-        localStorage.setItem(key, JSON.stringify(data));
-    },
-
-    loadStudentData() {
-        const key = 'omt_student_' + this.normalize(this.studentName);
-        try {
-            const data = JSON.parse(localStorage.getItem(key));
-            if (data) {
-                this.scores = data.scores || {};
-                this.answeredExercises = data.answered || {};
-                this.classifySelections = data.classify || {};
-            } else {
-                this.scores = {};
-                this.answeredExercises = {};
-                this.classifySelections = {};
-            }
-        } catch {
-            this.scores = {};
-            this.answeredExercises = {};
-            this.classifySelections = {};
-        }
+  async studentJoinClass() {
+    const name = document.getElementById('student-name').value.trim();
+    if (!name || name.length < 2) {
+      document.getElementById('student-login-error').textContent = 'Ingresa tu nombre completo';
+      return;
     }
+    document.getElementById('student-login-error').textContent = '';
+    document.getElementById('student-login-status').textContent = '🔄 Conectando...';
+    try {
+      const key = await Sync.registerStudent(name);
+      StudentLive.init(name, key);
+      showScreen('screen-student-live');
+    } catch(e) {
+      document.getElementById('student-login-error').textContent = '⚠️ Error de conexión. Verifica tu internet.';
+      document.getElementById('student-login-status').textContent = '';
+    }
+  },
+
+  professorEnter() {
+    const pass = document.getElementById('professor-pass').value;
+    if (pass !== '6588242') {
+      document.getElementById('professor-login-error').textContent = 'Código incorrecto';
+      return;
+    }
+    ProfControl.init();
+    showScreen('screen-professor-panel');
+  }
 };
 
-// Enter key support for login fields
+// ========================================
+// PROJECTOR VIEW — Vista del proyector
+// ========================================
+const ProjectorView = {
+  timerInterval: null,
+  currentClass: null,
+  currentSlide: 0,
+
+  init() {
+    Sync.listenSession(session => this.handleSession(session));
+    Sync.listenStudents(students => this.updateStudentCount(students));
+    Sync.listenActivity(activity => this.handleActivity(activity));
+    Sync.listenResponses(responses => this.handleResponses(responses));
+  },
+
+  handleSession(session) {
+    if (!session || !session.active) {
+      this.showWaiting('El profesor está preparando la sesión...');
+      return;
+    }
+
+    if (session.classId !== null) {
+      const cls = COURSE_DATA.classes.find(c => c.id === session.classId);
+      if (cls) {
+        this.currentClass = cls;
+        this.currentSlide = session.slideIndex || 0;
+        document.getElementById('proj-class-info').textContent = `${cls.icon} ${cls.title}`;
+        this.updateProgress(session.slideIndex, cls.studentSlides.length);
+      }
+    }
+
+    switch (session.mode) {
+      case 'waiting':
+        this.showWaiting('Esperando inicio de clase...');
+        break;
+      case 'content':
+        this.showContent(session.slideIndex);
+        break;
+      case 'activity':
+        // Handled by listenActivity
+        break;
+      case 'results':
+        this.showResultsView();
+        break;
+    }
+  },
+
+  showWaiting(msg) {
+    document.getElementById('proj-waiting').style.display = 'flex';
+    document.getElementById('proj-content-area').style.display = 'none';
+    document.getElementById('proj-activity-area').style.display = 'none';
+    document.getElementById('proj-results-area').style.display = 'none';
+    document.querySelector('.proj-waiting-sub').textContent = msg;
+  },
+
+  showContent(slideIdx) {
+    if (!this.currentClass) return;
+    const slides = this.currentClass.studentSlides;
+    if (slideIdx >= slides.length) return;
+
+    document.getElementById('proj-waiting').style.display = 'none';
+    document.getElementById('proj-content-area').style.display = 'flex';
+    document.getElementById('proj-activity-area').style.display = 'none';
+    document.getElementById('proj-results-area').style.display = 'none';
+
+    const slide = slides[slideIdx];
+    const container = document.getElementById('proj-slide-content');
+    container.style.animation = 'none';
+    void container.offsetHeight;
+    container.style.animation = 'projSlideIn 0.5s ease';
+
+    if (slide.type === 'info') {
+      container.innerHTML = `<div class="proj-info-slide">${slide.html}</div>`;
+    } else if (slide.type === 'exercise') {
+      container.innerHTML = `<div class="proj-exercise-preview">
+        <div class="proj-exercise-badge">⚡ ACTIVIDAD PRÓXIMA</div>
+        <div class="proj-exercise-q">${slide.question}</div>
+        <div class="proj-exercise-hint">El profesor lanzará esta actividad en tu celular</div>
+      </div>`;
+    }
+  },
+
+  handleActivity(activity) {
+    if (!activity || !activity.active) return;
+
+    document.getElementById('proj-waiting').style.display = 'none';
+    document.getElementById('proj-content-area').style.display = 'none';
+    document.getElementById('proj-activity-area').style.display = 'flex';
+    document.getElementById('proj-results-area').style.display = 'none';
+
+    document.getElementById('proj-activity-question').textContent = activity.question;
+
+    const optionsEl = document.getElementById('proj-activity-options');
+    if (activity.type === 'multiple' && activity.options) {
+      optionsEl.innerHTML = activity.options.map((opt, i) =>
+        `<div class="proj-option" id="proj-opt-${i}"><span class="proj-opt-letter">${String.fromCharCode(65+i)}</span>${opt}</div>`
+      ).join('');
+    } else {
+      optionsEl.innerHTML = `<div class="proj-text-indicator">📝 Respuesta abierta — escríbela en tu celular</div>`;
+    }
+
+    this.startTimer(activity.timerEnd);
+  },
+
+  startTimer(timerEnd) {
+    clearInterval(this.timerInterval);
+    const circle = document.getElementById('proj-timer-circle');
+    const numEl = document.getElementById('proj-timer-num');
+    const circumference = 2 * Math.PI * 42;
+    circle.style.strokeDasharray = circumference;
+
+    const totalMs = timerEnd - Date.now();
+    const totalSecs = Math.max(1, Math.round(totalMs / 1000));
+
+    const update = () => {
+      const remaining = Math.max(0, timerEnd - Date.now());
+      const secs = Math.ceil(remaining / 1000);
+      numEl.textContent = secs;
+
+      const pct = remaining / (totalSecs * 1000);
+      circle.style.strokeDashoffset = circumference * (1 - pct);
+
+      if (secs <= 5) {
+        circle.style.stroke = '#ff1744';
+        numEl.style.color = '#ff1744';
+      } else if (secs <= 15) {
+        circle.style.stroke = '#ffd600';
+        numEl.style.color = '#ffd600';
+      } else {
+        circle.style.stroke = '#00c853';
+        numEl.style.color = '#00c853';
+      }
+
+      if (remaining <= 0) {
+        clearInterval(this.timerInterval);
+        numEl.textContent = '⏰';
+      }
+    };
+
+    update();
+    this.timerInterval = setInterval(update, 250);
+  },
+
+  handleResponses(responses) {
+    const container = document.getElementById('proj-responses-live');
+    const count = Object.keys(responses).length;
+    if (count === 0) { container.innerHTML = ''; return; }
+
+    container.innerHTML = `<div class="proj-responses-header">📨 ${count} respuesta${count > 1 ? 's' : ''} recibida${count > 1 ? 's' : ''}</div>
+      <div class="proj-response-chips">${Object.values(responses).map(r =>
+        `<div class="proj-response-chip ${r.score > 0 ? 'chip-correct' : 'chip-wrong'}">
+          ${r.score > 0 ? '✅' : '⏳'} ${r.studentName.split(' ')[0]}
+        </div>`
+      ).join('')}</div>`;
+  },
+
+  async showResultsView() {
+    document.getElementById('proj-waiting').style.display = 'none';
+    document.getElementById('proj-content-area').style.display = 'none';
+    document.getElementById('proj-activity-area').style.display = 'none';
+    document.getElementById('proj-results-area').style.display = 'flex';
+    clearInterval(this.timerInterval);
+
+    const [activity, responses, students] = await Promise.all([
+      Sync.getActivity(), Sync.getResponses(), Sync.getStudents()
+    ]);
+
+    const resultsEl = document.getElementById('proj-results-content');
+    if (!activity) { resultsEl.innerHTML = '<p>Sin datos de actividad.</p>'; return; }
+
+    const studentList = Object.values(students);
+    const correctStudents = [];
+    const wrongStudents = [];
+
+    studentList.forEach(s => {
+      const r = responses[s.key];
+      if (r && r.score > 0) correctStudents.push(s);
+      else wrongStudents.push(s);
+    });
+
+    let html = '';
+
+    if (activity.type === 'multiple' && activity.options) {
+      const correct = activity.options[activity.correctIndex];
+      html += `<div class="proj-answer-reveal">
+        <div class="proj-answer-label">✅ Respuesta correcta:</div>
+        <div class="proj-answer-text">${correct}</div>
+      </div>`;
+    }
+
+    if (correctStudents.length > 0) {
+      html += `<div class="proj-result-group proj-correct-group">
+        <div class="proj-result-group-title">🏆 ¡Excelente trabajo!</div>
+        <div class="proj-result-names">${correctStudents.map(s =>
+          `<div class="proj-result-chip correct-chip">🎉 ${s.name}</div>`).join('')}
+        </div>
+      </div>`;
+    }
+
+    if (wrongStudents.length > 0) {
+      html += `<div class="proj-result-group proj-wrong-group">
+        <div class="proj-result-group-title">📚 A repasar el tema:</div>
+        <div class="proj-result-names">${wrongStudents.map(s => {
+          const r = responses[s.key];
+          return `<div class="proj-result-chip wrong-chip">📖 ${s.name}${!r ? ' (sin respuesta)' : ''}</div>`;
+        }).join('')}</div>
+      </div>`;
+    }
+
+    // Ranking de puntajes
+    html += `<div class="proj-ranking">
+      <div class="proj-ranking-title">⭐ Puntaje Acumulado</div>
+      ${studentList.sort((a,b) => (b.score||0)-(a.score||0)).map((s,i) =>
+        `<div class="proj-rank-item">
+          <span class="rank-pos">${i+1}</span>
+          <span class="rank-name">${s.name}</span>
+          <span class="rank-score">${s.score || 0} pts</span>
+        </div>`
+      ).join('')}</div>`;
+
+    resultsEl.innerHTML = html;
+  },
+
+  updateStudentCount(students) {
+    const onlineCount = Object.values(students).filter(s => s.online).length;
+    document.getElementById('proj-student-count').textContent = `${onlineCount} estudiante${onlineCount !== 1 ? 's' : ''}`;
+
+    // Mostrar nombres en espera
+    const waitingEl = document.getElementById('proj-waiting-students');
+    if (waitingEl) {
+      waitingEl.innerHTML = Object.values(students).filter(s => s.online).map(s =>
+        `<div class="waiting-student-chip">${s.name.split(' ')[0]}</div>`
+      ).join('');
+    }
+  },
+
+  updateProgress(idx, total) {
+    if (!total) return;
+    document.getElementById('proj-slide-counter').textContent = `${idx + 1} / ${total}`;
+    document.getElementById('proj-progress-fill').style.width = `${((idx + 1) / total) * 100}%`;
+  }
+};
+
+// ========================================
+// PROF CONTROL — Panel del Profesor
+// ========================================
+const ProfControl = {
+  currentClass: null,
+  currentSlide: 0,
+  selectedTimer: 20,
+  activityActive: false,
+
+  async init() {
+    await Sync.initSession();
+    this.renderClassList();
+    Sync.listenStudents(students => this.updateStudentList(students));
+    Sync.listenResponses(responses => this.updateResponsesView(responses));
+    document.getElementById('prof-session-info').textContent = '🟢 Sesión activa';
+  },
+
+  renderClassList() {
+    const list = document.getElementById('prof-class-list');
+    list.innerHTML = COURSE_DATA.classes.map(c => `
+      <div class="prof-class-card" onclick="ProfControl.selectClass(${c.id})">
+        <span class="prof-class-icon">${c.icon}</span>
+        <div>
+          <div class="prof-class-num">${c.num}</div>
+          <div class="prof-class-title">${c.title}</div>
+        </div>
+        <span class="prof-class-arrow">→</span>
+      </div>
+    `).join('');
+    document.getElementById('prof-class-selector').style.display = 'block';
+    document.getElementById('prof-lesson-panel').style.display = 'none';
+  },
+
+  async selectClass(id) {
+    this.currentClass = COURSE_DATA.classes.find(c => c.id === id);
+    if (!this.currentClass) return;
+    this.currentSlide = 0;
+    await Sync.updateSession({ classId: id, slideIndex: 0, mode: 'content' });
+    document.getElementById('prof-class-selector').style.display = 'none';
+    document.getElementById('prof-lesson-panel').style.display = 'block';
+    document.getElementById('prof-current-class-info').innerHTML =
+      `${this.currentClass.icon} <strong>${this.currentClass.title}</strong>`;
+    this.renderProfSlide();
+  },
+
+  renderProfSlide() {
+    const profSlides = this.currentClass.professorSlides;
+    const studSlides = this.currentClass.studentSlides;
+    const total = profSlides.length;
+    const idx = this.currentSlide;
+
+    document.getElementById('prof-slide-info').textContent = `${idx + 1} / ${total}`;
+    document.getElementById('prof-btn-prev').disabled = idx === 0;
+    document.getElementById('prof-btn-next').disabled = idx === total - 1;
+
+    // Guía del profesor
+    const profSlide = profSlides[idx];
+    document.getElementById('prof-guide-content').innerHTML = profSlide ? profSlide.html : '';
+
+    // Verificar si el slide de estudiante correspondiente es ejercicio
+    const studSlide = studSlides[idx];
+    const actLauncher = document.getElementById('prof-activity-launcher');
+    if (studSlide && studSlide.type === 'exercise') {
+      actLauncher.style.display = 'block';
+      document.getElementById('prof-activity-preview').textContent = studSlide.question;
+      // Reset buttons
+      document.getElementById('btn-launch-activity').style.display = 'block';
+      document.getElementById('btn-close-activity').style.display = 'none';
+      this.activityActive = false;
+    } else {
+      actLauncher.style.display = 'none';
+    }
+  },
+
+  async nextSlide() {
+    if (!this.currentClass) return;
+    const total = this.currentClass.professorSlides.length;
+    if (this.currentSlide < total - 1) {
+      this.currentSlide++;
+      await Sync.updateSession({ slideIndex: this.currentSlide, mode: 'content' });
+      this.renderProfSlide();
+    }
+  },
+
+  async prevSlide() {
+    if (this.currentSlide > 0) {
+      this.currentSlide--;
+      await Sync.updateSession({ slideIndex: this.currentSlide, mode: 'content' });
+      this.renderProfSlide();
+    }
+  },
+
+  setTimer(secs, btn) {
+    this.selectedTimer = secs;
+    document.querySelectorAll('.timer-preset').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+  },
+
+  async launchActivity() {
+    if (!this.currentClass) return;
+    const slide = this.currentClass.studentSlides[this.currentSlide];
+    if (!slide || slide.type !== 'exercise') return;
+
+    const activityData = {
+      type: slide.exerciseType,
+      question: slide.question,
+      options: slide.options || null,
+      correctIndex: slide.correctIndex !== undefined ? slide.correctIndex : null,
+      correctOrder: slide.correctOrder || null,
+      correctAnswer: slide.correctAnswer || null,
+      points: slide.points || 10,
+      slideIdx: this.currentSlide,
+      classId: this.currentClass.id
+    };
+
+    await Sync.launchActivity(activityData, this.selectedTimer);
+    this.activityActive = true;
+    document.getElementById('btn-launch-activity').style.display = 'none';
+    document.getElementById('btn-close-activity').style.display = 'block';
+  },
+
+  async closeActivity() {
+    await Sync.closeActivity();
+    this.activityActive = false;
+    document.getElementById('btn-launch-activity').style.display = 'block';
+    document.getElementById('btn-close-activity').style.display = 'none';
+    // Mostrar resultados en el proyector, en estudiantes
+    setTimeout(() => Sync.updateSession({ mode: 'content', slideIndex: this.currentSlide }), 5000);
+  },
+
+  updateStudentList(students) {
+    const list = Object.values(students).filter(s => s.online);
+    document.getElementById('prof-student-count-badge').textContent = list.length;
+    document.getElementById('prof-student-list').innerHTML = list.map(s =>
+      `<div class="prof-student-item">
+        <span class="prof-student-dot online"></span>
+        <span class="prof-student-name">${s.name}</span>
+        <span class="prof-student-score">⭐ ${s.score || 0}</span>
+      </div>`
+    ).join('') || '<div class="prof-no-students">Esperando estudiantes...</div>';
+  },
+
+  updateResponsesView(responses) {
+    // Could add a mini response view in prof panel if needed
+  },
+
+  backToClasses() {
+    this.currentClass = null;
+    this.currentSlide = 0;
+    Sync.updateSession({ classId: null, mode: 'waiting' });
+    this.renderClassList();
+  },
+
+  async confirmReset() {
+    if (confirm('¿Resetear la sesión? Todos los estudiantes serán desconectados.')) {
+      await Sync.resetSession();
+      App.goSplash();
+    }
+  }
+};
+
+// ========================================
+// STUDENT LIVE — Vista del estudiante
+// ========================================
+const StudentLive = {
+  name: '',
+  key: '',
+  answered: false,
+  timerInterval: null,
+
+  init(name, key) {
+    this.name = name;
+    this.key = key;
+    this.answered = false;
+    document.getElementById('student-name-badge').textContent = `🎓 ${name.split(' ')[0]}`;
+    document.getElementById('student-score-badge').textContent = '⭐ 0 pts';
+
+    Sync.listenSession(session => this.handleSession(session));
+    Sync.listenActivity(activity => this.handleActivity(activity));
+  },
+
+  handleSession(session) {
+    if (!session || !session.active) {
+      this.showState('sl-waiting');
+      document.getElementById('sl-waiting-msg').textContent = 'Sesión no iniciada...';
+      return;
+    }
+
+    switch (session.mode) {
+      case 'waiting':
+        this.showState('sl-waiting');
+        document.getElementById('sl-waiting-msg').textContent = 'Esperando que el profesor inicie la clase...';
+        break;
+      case 'content':
+        this.answered = false;
+        this.showState('sl-listening');
+        if (session.classId !== null) {
+          const cls = COURSE_DATA.classes.find(c => c.id === session.classId);
+          if (cls) {
+            const slide = cls.studentSlides[session.slideIndex || 0];
+            document.getElementById('sl-topic').textContent = cls.title;
+          }
+        }
+        break;
+      case 'activity':
+        // Handled by listenActivity
+        break;
+      case 'results':
+        clearInterval(this.timerInterval);
+        this.showResultsState();
+        break;
+    }
+  },
+
+  handleActivity(activity) {
+    if (!activity || !activity.active) return;
+    if (this.answered) return;
+
+    this.showState('sl-activity');
+    document.getElementById('sl-question').textContent = activity.question;
+    document.getElementById('sl-answered-msg').style.display = 'none';
+
+    if (activity.type === 'multiple' && activity.options) {
+      document.getElementById('sl-text-area').style.display = 'none';
+      document.getElementById('sl-options').innerHTML = activity.options.map((opt, i) =>
+        `<button class="sl-option-btn" onclick="StudentLive.submitMultiple(${i})">
+          <span class="sl-opt-letter">${String.fromCharCode(65+i)}</span>
+          <span class="sl-opt-text">${opt}</span>
+        </button>`
+      ).join('');
+    } else {
+      document.getElementById('sl-options').innerHTML = '';
+      document.getElementById('sl-text-area').style.display = 'block';
+      document.getElementById('sl-text-input').value = '';
+    }
+
+    this.startStudentTimer(activity.timerEnd);
+  },
+
+  startStudentTimer(timerEnd) {
+    clearInterval(this.timerInterval);
+    const el = document.getElementById('sl-timer-display');
+
+    const update = () => {
+      const remaining = Math.max(0, timerEnd - Date.now());
+      const secs = Math.ceil(remaining / 1000);
+      el.textContent = secs;
+
+      if (secs <= 5) el.style.color = '#ff1744';
+      else if (secs <= 15) el.style.color = '#ffd600';
+      else el.style.color = '#00c853';
+
+      if (remaining <= 0) {
+        clearInterval(this.timerInterval);
+        el.textContent = '⏰';
+        if (!this.answered) {
+          document.getElementById('sl-options').innerHTML = '';
+          document.getElementById('sl-text-area').style.display = 'none';
+          document.getElementById('sl-answered-msg').style.display = 'block';
+          document.getElementById('sl-answered-msg').textContent = '⏰ Tiempo agotado';
+        }
+      }
+    };
+
+    update();
+    this.timerInterval = setInterval(update, 250);
+  },
+
+  async submitMultiple(optionIdx) {
+    if (this.answered) return;
+    const activity = await Sync.getActivity();
+    if (!activity || !activity.active) return;
+
+    this.answered = true;
+    const score = optionIdx === activity.correctIndex ? (activity.points || 10) : 0;
+
+    await Sync.submitResponse(this.key, this.name, {
+      answer: optionIdx,
+      score,
+      type: 'multiple'
+    });
+
+    if (score > 0) {
+      await Sync.addScore(this.key, score);
+    }
+
+    // Show feedback immediately
+    document.querySelectorAll('.sl-option-btn').forEach((btn, i) => {
+      btn.disabled = true;
+      if (i === activity.correctIndex) btn.classList.add('sl-opt-correct');
+      else if (i === optionIdx && optionIdx !== activity.correctIndex) btn.classList.add('sl-opt-wrong');
+    });
+
+    document.getElementById('sl-answered-msg').style.display = 'block';
+    document.getElementById('sl-answered-msg').textContent =
+      score > 0 ? `✅ ¡Correcto! +${score} puntos` : '❌ Incorrecto — ¡a repasar!';
+    document.getElementById('sl-answered-msg').className =
+      `sl-answered-msg ${score > 0 ? 'sl-correct' : 'sl-wrong'}`;
+
+    // Update badge
+    const snap = await Sync.getStudents();
+    if (snap[this.key]) {
+      document.getElementById('student-score-badge').textContent = `⭐ ${snap[this.key].score} pts`;
+    }
+  },
+
+  async submitText() {
+    if (this.answered) return;
+    const text = document.getElementById('sl-text-input').value.trim();
+    if (!text || text.length < 3) return;
+
+    const activity = await Sync.getActivity();
+    if (!activity) return;
+
+    this.answered = true;
+    // For text, give partial credit (teacher evaluates)
+    const score = text.length >= 10 ? Math.round((activity.points || 10) * 0.5) : 0;
+
+    await Sync.submitResponse(this.key, this.name, {
+      answer: text,
+      score,
+      type: 'text'
+    });
+
+    if (score > 0) await Sync.addScore(this.key, score);
+
+    document.getElementById('sl-text-area').style.display = 'none';
+    document.getElementById('sl-answered-msg').style.display = 'block';
+    document.getElementById('sl-answered-msg').textContent = '✅ Respuesta enviada. El profesor la revisará.';
+    document.getElementById('sl-answered-msg').className = 'sl-answered-msg sl-sent';
+  },
+
+  async showResultsState() {
+    this.showState('sl-results');
+    const students = await Sync.getStudents();
+    const me = students[this.key];
+    const score = me ? (me.score || 0) : 0;
+
+    document.getElementById('student-score-badge').textContent = `⭐ ${score} pts`;
+    document.getElementById('sl-results-content').innerHTML = `
+      <div class="sl-result-icon">${score > 0 ? '🌟' : '📚'}</div>
+      <h3 class="sl-result-title">${score > 0 ? '¡Bien hecho!' : 'Sigue practicando'}</h3>
+      <div class="sl-result-score">${score} puntos acumulados</div>
+      <p class="sl-result-msg">${score > 0
+        ? 'Vas por buen camino. Sigue atento a la clase.'
+        : 'No te preocupes, repasa el tema y lo dominarás.'}</p>
+      <div class="sl-waiting-next">⏳ Esperando siguiente actividad...</div>
+    `;
+  },
+
+  showState(id) {
+    ['sl-waiting', 'sl-listening', 'sl-activity', 'sl-results'].forEach(s => {
+      const el = document.getElementById(s);
+      if (el) el.style.display = s === id ? 'flex' : 'none';
+    });
+  }
+};
+
+// ========================================
+// INIT — Keyboard events
+// ========================================
 document.addEventListener('DOMContentLoaded', () => {
-    document.getElementById('student-name').addEventListener('keyup', e => { if (e.key === 'Enter') App.studentEnter(); });
-    document.getElementById('professor-pass').addEventListener('keyup', e => { if (e.key === 'Enter') App.professorEnter(); });
+  document.getElementById('student-name').addEventListener('keyup', e => {
+    if (e.key === 'Enter') App.studentJoinClass();
+  });
+  document.getElementById('professor-pass').addEventListener('keyup', e => {
+    if (e.key === 'Enter') App.professorEnter();
+  });
 });
+
+// Expose globals for onclick handlers
+window.App = App;
+window.ProfControl = ProfControl;
+window.StudentLive = StudentLive;
