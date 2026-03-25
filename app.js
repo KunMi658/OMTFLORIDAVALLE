@@ -225,12 +225,16 @@ const ProjectorView = {
       ).join('')}</div>`;
   },
 
+  // Tracks cumulative activity count per session for star calculation
+  _activityCount: 0,
+
   async showResultsView() {
     document.getElementById('proj-waiting').style.display = 'none';
     document.getElementById('proj-content-area').style.display = 'none';
     document.getElementById('proj-activity-area').style.display = 'none';
     document.getElementById('proj-results-area').style.display = 'flex';
     clearInterval(this.timerInterval);
+    this._activityCount++;
 
     const [activity, responses, students] = await Promise.all([
       Sync.getActivity(), Sync.getResponses(), Sync.getStudents()
@@ -239,57 +243,151 @@ const ProjectorView = {
     const resultsEl = document.getElementById('proj-results-content');
     if (!activity) { resultsEl.innerHTML = '<p>Sin datos de actividad.</p>'; return; }
 
-    const studentList = Object.values(students);
-    const correctStudents = [];
-    const wrongStudents = [];
-
-    studentList.forEach(s => {
+    const studentList = Object.values(students).filter(s => s.online || responses[s.key]);
+    const totalStudents = studentList.length;
+    const correctCount = studentList.filter(s => {
       const r = responses[s.key];
-      if (r && r.score > 0) correctStudents.push(s);
-      else wrongStudents.push(s);
-    });
+      return r && r.score > 0;
+    }).length;
+    const pctCorrect = totalStudents > 0 ? Math.round((correctCount / totalStudents) * 100) : 0;
 
-    let html = '';
-
+    // Correct answer for display
+    let correctAnswerHtml = '';
     if (activity.type === 'multiple' && activity.options) {
       const correct = activity.options[activity.correctIndex];
-      html += `<div class="proj-answer-reveal">
-        <div class="proj-answer-label">✅ Respuesta correcta:</div>
-        <div class="proj-answer-text">${correct}</div>
+      correctAnswerHtml = `<div class="res-correct-banner">
+        <span class="res-correct-label">✅ Respuesta correcta</span>
+        <span class="res-correct-text">${String.fromCharCode(65 + activity.correctIndex)}. ${correct}</span>
       </div>`;
     }
 
-    if (correctStudents.length > 0) {
-      html += `<div class="proj-result-group proj-correct-group">
-        <div class="proj-result-group-title">🏆 ¡Excelente trabajo!</div>
-        <div class="proj-result-names">${correctStudents.map(s =>
-          `<div class="proj-result-chip correct-chip">🎉 ${s.name}</div>`).join('')}
+    // Summary stats
+    const summaryHtml = `
+      <div class="res-stats-row">
+        ${correctAnswerHtml}
+        <div class="res-stat-card res-stat-green">
+          <div class="res-stat-num">${correctCount}</div>
+          <div class="res-stat-label">Correctas</div>
+        </div>
+        <div class="res-stat-card res-stat-red">
+          <div class="res-stat-num">${totalStudents - correctCount}</div>
+          <div class="res-stat-label">A repasar</div>
+        </div>
+        <div class="res-stat-card res-stat-blue">
+          <div class="res-stat-num">${pctCorrect}%</div>
+          <div class="res-stat-label">Aciertos</div>
         </div>
       </div>`;
-    }
 
-    if (wrongStudents.length > 0) {
-      html += `<div class="proj-result-group proj-wrong-group">
-        <div class="proj-result-group-title">📚 A repasar el tema:</div>
-        <div class="proj-result-names">${wrongStudents.map(s => {
-          const r = responses[s.key];
-          return `<div class="proj-result-chip wrong-chip">📖 ${s.name}${!r ? ' (sin respuesta)' : ''}</div>`;
-        }).join('')}</div>
+    // Bar chart — sorted by score desc
+    const maxScore = Math.max(...studentList.map(s => s.score || 0), 1);
+    const barHtml = `
+      <div class="res-bars-section">
+        <div class="res-bars-title">📊 Puntaje acumulado de la sesión</div>
+        <div class="res-bars-grid">
+          ${studentList.sort((a,b) => (b.score||0)-(a.score||0)).map((s, i) => {
+            const scorePct = Math.round(((s.score || 0) / maxScore) * 100);
+            const stars = Math.max(1, Math.min(5, Math.round((s.score||0) / maxScore * 5)));
+            const r = responses[s.key];
+            const isCorrect = r && r.score > 0;
+            const barColor = isCorrect ? 'bar-green' : 'bar-red';
+            return `<div class="res-bar-item" style="animation-delay:${i * 80}ms">
+              <div class="res-bar-name">${s.name.split(' ')[0]}</div>
+              <div class="res-bar-track">
+                <div class="res-bar-fill ${barColor}" style="--target:${scorePct}%"></div>
+              </div>
+              <div class="res-bar-score">${s.score || 0}pts</div>
+            </div>`;
+          }).join('')}
+        </div>
       </div>`;
+
+    // Student expandable cards
+    const cardsHtml = `
+      <div class="res-cards-section">
+        <div class="res-cards-title">👥 Detalle por estudiante — toca para ver su respuesta</div>
+        <div class="res-cards-grid" id="res-cards-grid">
+          ${studentList.map((s, i) => {
+            const r = responses[s.key];
+            const isCorrect = r && r.score > 0;
+            const starCount = Math.max(1, Math.min(5, Math.round((s.score||0) / maxScore * 5)));
+            const stars = '⭐'.repeat(starCount) + '☆'.repeat(5 - starCount);
+
+            let answerDetail = '';
+            if (!r) {
+              answerDetail = `<div class="res-card-no-answer">⏰ No respondió a tiempo</div>`;
+            } else if (activity.type === 'multiple' && activity.options) {
+              const studentAnswer = activity.options[r.answer];
+              const correctAnswer = activity.options[activity.correctIndex];
+              answerDetail = `
+                <div class="res-card-answer ${isCorrect ? 'answer-correct' : 'answer-wrong'}">
+                  <div class="res-card-answer-label">Su respuesta:</div>
+                  <div class="res-card-answer-text">${String.fromCharCode(65 + r.answer)}. ${studentAnswer}</div>
+                  ${!isCorrect ? `<div class="res-card-correct-show">✅ Correcta: ${String.fromCharCode(65 + activity.correctIndex)}. ${correctAnswer}</div>` : ''}
+                </div>`;
+            } else if (r.type === 'text') {
+              answerDetail = `
+                <div class="res-card-answer ${isCorrect ? 'answer-correct' : 'answer-wrong'}">
+                  <div class="res-card-answer-label">Su respuesta:</div>
+                  <div class="res-card-answer-text">"${r.answer}"</div>
+                </div>`;
+            }
+
+            return `
+              <div class="res-card ${isCorrect ? 'res-card-ok' : 'res-card-bad'}" 
+                   id="res-card-${i}" 
+                   onclick="ProjectorView.toggleCard(${i})"
+                   style="animation-delay:${i * 100}ms">
+                <div class="res-card-header">
+                  <div class="res-card-name-row">
+                    <span class="res-card-status-dot ${isCorrect ? 'dot-green' : 'dot-red'}"></span>
+                    <span class="res-card-name">${s.name}</span>
+                  </div>
+                  <div class="res-card-meta">
+                    <span class="res-card-stars">${stars}</span>
+                    <span class="res-card-pts">${s.score || 0} pts</span>
+                    <span class="res-card-chevron" id="res-chevron-${i}">›</span>
+                  </div>
+                </div>
+                <div class="res-card-body" id="res-card-body-${i}">
+                  ${answerDetail}
+                </div>
+              </div>`;
+          }).join('')}
+        </div>
+      </div>`;
+
+    resultsEl.innerHTML = summaryHtml + barHtml + cardsHtml;
+
+    // Animate bars after render
+    requestAnimationFrame(() => {
+      document.querySelectorAll('.res-bar-fill').forEach(bar => {
+        bar.style.width = bar.style.getPropertyValue('--target') || '0%';
+      });
+    });
+  },
+
+  toggleCard(idx) {
+    const body = document.getElementById(`res-card-body-${idx}`);
+    const chevron = document.getElementById(`res-chevron-${idx}`);
+    const card = document.getElementById(`res-card-${idx}`);
+    if (!body) return;
+
+    const isOpen = body.classList.contains('open');
+    // Close all others
+    document.querySelectorAll('.res-card-body').forEach((b, i) => {
+      b.classList.remove('open');
+      const c = document.getElementById(`res-chevron-${i}`);
+      if (c) c.style.transform = 'rotate(0deg)';
+    });
+    document.querySelectorAll('.res-card').forEach(c => c.classList.remove('res-card-active'));
+
+    if (!isOpen) {
+      body.classList.add('open');
+      if (chevron) chevron.style.transform = 'rotate(90deg)';
+      card.classList.add('res-card-active');
+      setTimeout(() => card.scrollIntoView({ behavior: 'smooth', block: 'nearest' }), 100);
     }
-
-    // Ranking de puntajes
-    html += `<div class="proj-ranking">
-      <div class="proj-ranking-title">⭐ Puntaje Acumulado</div>
-      ${studentList.sort((a,b) => (b.score||0)-(a.score||0)).map((s,i) =>
-        `<div class="proj-rank-item">
-          <span class="rank-pos">${i+1}</span>
-          <span class="rank-name">${s.name}</span>
-          <span class="rank-score">${s.score || 0} pts</span>
-        </div>`
-      ).join('')}</div>`;
-
-    resultsEl.innerHTML = html;
   },
 
   updateStudentCount(students) {
