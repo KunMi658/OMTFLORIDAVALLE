@@ -1,131 +1,184 @@
 <!DOCTYPE html>
 <html lang="es">
-
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>OMT - Curso Interactivo</title>
-    <link rel="stylesheet" href="styles.css">
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap"
-        rel="stylesheet">
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>OMT — Aula Interactiva</title>
+  <link rel="stylesheet" href="styles.css">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
 </head>
-
 <body>
-    <div id="app">
-        <!-- SPLASH SCREEN -->
-        <div id="screen-splash" class="screen active">
-            <div class="splash-container">
-                <div class="logo-shield"><img src="https://i.ibb.co/kgVrTnRV/LOGO-PNG-ACADEMIA.png" alt="Logo Academia"
-                        class="logo-img"></div>
-                <h1 class="splash-title">OMT</h1>
-                <p class="splash-subtitle">Operadores de Medios Tecnológicos</p>
-                <p class="splash-desc">Curso de Formación en Seguridad Privada</p>
-                <div class="splash-badge">CARSP • Colombia</div>
-                <div class="role-buttons">
-                    <button class="btn btn-student" onclick="App.showStudentLogin()">
-                        <span class="btn-icon">🎓</span>
-                        <span class="btn-label">Soy Estudiante</span>
-                    </button>
-                    <button class="btn btn-professor" onclick="App.showProfessorLogin()">
-                        <span class="btn-icon">👨‍🏫</span>
-                        <span class="btn-label">Acceso Profesor</span>
-                    </button>
-                </div>
-
-            </div>
+  <div id="app">
+    <div id="screen-splash" class="screen active">
+      <div class="splash-container">
+        <div class="logo-shield"><img src="https://i.ibb.co/kgVrTnRV/LOGO-PNG-ACADEMIA.png" alt="Logo Academia" class="logo-img"></div>
+        <h1 class="splash-title">OMT</h1>
+        <p class="splash-subtitle">Operadores de Medios Tecnológicos</p>
+        <p class="splash-desc">Curso de Formación en Seguridad Privada</p>
+        <div class="splash-badge">CARSP • Colombia</div>
+        <div class="role-buttons">
+          <button class="btn btn-projector" onclick="App.showProjectorMode()"><span class="btn-icon">📺</span><span class="btn-label">Modo Proyector<br><small>Pantalla del Aula</small></span></button>
+          <button class="btn btn-student" onclick="App.showStudentLogin()"><span class="btn-icon">🎓</span><span class="btn-label">Unirme a la Clase<br><small>Soy Estudiante</small></span></button>
+          <button class="btn btn-professor" onclick="App.showProfessorLogin()"><span class="btn-icon">👨‍🏫</span><span class="btn-label">Acceso Profesor<br><small>Panel de Control</small></span></button>
         </div>
-
-        <!-- STUDENT LOGIN -->
-        <div id="screen-student-login" class="screen">
-            <div class="login-container">
-                <button class="back-btn" onclick="App.goSplash()">← Volver</button>
-                <div class="login-icon">🎓</div>
-                <h2>Registro de Estudiante</h2>
-                <p>Ingresa tu nombre completo para comenzar</p>
-                <input type="text" id="student-name" placeholder="Tu nombre completo" class="input-field"
-                    autocomplete="off">
-                <button class="btn btn-primary btn-block" onclick="App.studentEnter()">Ingresar al Curso</button>
-                <div id="student-login-error" class="error-msg"></div>
-            </div>
-        </div>
-
-        <!-- PROFESSOR LOGIN -->
-        <div id="screen-professor-login" class="screen">
-            <div class="login-container">
-                <button class="back-btn" onclick="App.goSplash()">← Volver</button>
-                <div class="login-icon">🔐</div>
-                <h2>Acceso Administrativo</h2>
-                <p>Ingresa el código de acceso</p>
-                <input type="password" id="professor-pass" placeholder="Código de acceso" class="input-field"
-                    autocomplete="off">
-                <button class="btn btn-primary btn-block" onclick="App.professorEnter()">Acceder</button>
-                <div id="professor-login-error" class="error-msg"></div>
-            </div>
-        </div>
-
-        <!-- CLASS SELECTOR (both roles) -->
-        <div id="screen-class-select" class="screen">
-            <div class="class-select-container">
-                <div class="select-header">
-                    <button class="back-btn" onclick="App.goSplash()">← Salir</button>
-                    <div id="user-badge" class="user-badge"></div>
-                </div>
-                <h2 class="select-title">Selecciona la Clase</h2>
-                <div id="class-grid" class="class-grid"></div>
-            </div>
-        </div>
-
-        <!-- LESSON VIEW (Student) -->
-        <div id="screen-lesson" class="screen">
-            <div class="lesson-container">
-                <div class="lesson-header">
-                    <button class="back-btn" onclick="App.backToClasses()">← Clases</button>
-                    <div class="lesson-progress">
-                        <span id="slide-counter">1/10</span>
-                        <div class="progress-bar">
-                            <div id="progress-fill" class="progress-fill"></div>
-                        </div>
-                    </div>
-                    <div id="score-display" class="score-display">⭐ 0</div>
-                </div>
-                <div id="slide-content" class="slide-content"></div>
-                <div class="lesson-nav">
-                    <button id="btn-prev" class="btn btn-nav" onclick="App.prevSlide()">← Anterior</button>
-                    <button id="btn-next" class="btn btn-nav btn-primary" onclick="App.nextSlide()">Siguiente →</button>
-                </div>
-            </div>
-        </div>
-
-        <!-- PROFESSOR LESSON VIEW -->
-        <div id="screen-professor-lesson" class="screen">
-            <div class="lesson-container professor-view">
-                <div class="lesson-header">
-                    <button class="back-btn" onclick="App.backToClasses()">← Clases</button>
-                    <div class="lesson-progress">
-                        <span id="prof-slide-counter">1/10</span>
-                        <div class="progress-bar">
-                            <div id="prof-progress-fill" class="progress-fill"></div>
-                        </div>
-                    </div>
-                    <div class="prof-badge">👨‍🏫 GUÍA</div>
-                </div>
-                <div id="prof-slide-content" class="slide-content"></div>
-                <div class="lesson-nav">
-                    <button id="prof-btn-prev" class="btn btn-nav" onclick="App.profPrevSlide()">← Anterior</button>
-                    <button id="prof-btn-next" class="btn btn-nav btn-primary" onclick="App.profNextSlide()">Siguiente
-                        →</button>
-                </div>
-            </div>
-        </div>
-
-        <!-- RESULTS SCREEN -->
-        <div id="screen-results" class="screen">
-            <div class="results-container" id="results-content"></div>
-        </div>
+      </div>
     </div>
-
-    <script src="content.js"></script>
-    <script src="app.js"></script>
+    <div id="screen-student-login" class="screen">
+      <div class="login-container">
+        <button class="back-btn" onclick="App.goSplash()">← Volver</button>
+        <div class="login-icon">🎓</div>
+        <h2>Unirme a la Clase</h2>
+        <p>Ingresa tu nombre completo para participar</p>
+        <input type="text" id="student-name" placeholder="Tu nombre completo" class="input-field" autocomplete="off">
+        <button class="btn btn-primary btn-block" onclick="App.studentJoinClass()">Entrar a la Clase</button>
+        <div id="student-login-error" class="error-msg"></div>
+        <div id="student-login-status" class="status-msg"></div>
+      </div>
+    </div>
+    <div id="screen-professor-login" class="screen">
+      <div class="login-container">
+        <button class="back-btn" onclick="App.goSplash()">← Volver</button>
+        <div class="login-icon">🔐</div>
+        <h2>Acceso Administrativo</h2>
+        <p>Ingresa el código de acceso</p>
+        <input type="password" id="professor-pass" placeholder="Código de acceso" class="input-field" autocomplete="off">
+        <button class="btn btn-primary btn-block" onclick="App.professorEnter()">Acceder</button>
+        <div id="professor-login-error" class="error-msg"></div>
+      </div>
+    </div>
+    <div id="screen-projector" class="screen projector-mode">
+      <div class="proj-header">
+        <div class="proj-logo">
+          <img src="https://i.ibb.co/kgVrTnRV/LOGO-PNG-ACADEMIA.png" alt="OMT" class="proj-logo-img">
+          <span class="proj-title-text">OMT <span class="proj-carsp">CARSP</span></span>
+        </div>
+        <div class="proj-class-info" id="proj-class-info">Esperando al Profesor...</div>
+        <div class="proj-status"><div class="live-dot"></div><span id="proj-student-count">0 estudiantes</span></div>
+      </div>
+      <div class="proj-main">
+        <div id="proj-waiting" class="proj-waiting-state">
+          <div class="proj-waiting-icon">🕐</div>
+          <h2 class="proj-waiting-title">Sesión de Clase</h2>
+          <p class="proj-waiting-sub">El profesor está iniciando la sesión...</p>
+          <div class="proj-waiting-students" id="proj-waiting-students"></div>
+        </div>
+        <div id="proj-content-area" class="proj-content-area" style="display:none">
+          <div id="proj-slide-content" class="proj-slide"></div>
+        </div>
+        <div id="proj-activity-area" class="proj-activity-area" style="display:none">
+          <div class="proj-activity-header">
+            <div class="proj-activity-badge">⚡ ACTIVIDAD EN VIVO</div>
+            <div id="proj-timer" class="proj-timer">
+              <svg class="timer-ring" viewBox="0 0 100 100">
+                <circle class="timer-ring-bg" cx="50" cy="50" r="42"/>
+                <circle id="proj-timer-circle" class="timer-ring-fill" cx="50" cy="50" r="42"/>
+              </svg>
+              <span id="proj-timer-num" class="timer-number">30</span>
+            </div>
+          </div>
+          <div id="proj-activity-question" class="proj-activity-question"></div>
+          <div id="proj-activity-options" class="proj-activity-options"></div>
+          <div id="proj-responses-live" class="proj-responses-live"></div>
+        </div>
+        <div id="proj-results-area" class="proj-results-area" style="display:none">
+          <h2 class="proj-results-title">📊 Resultados</h2>
+          <div id="proj-results-content" class="proj-results-content"></div>
+        </div>
+      </div>
+      <div class="proj-footer">
+        <div class="proj-progress-info" id="proj-progress-info">Clase en progreso</div>
+        <div class="proj-progress-bar"><div id="proj-progress-fill" class="proj-progress-fill"></div></div>
+        <div class="proj-slide-counter" id="proj-slide-counter">—</div>
+      </div>
+    </div>
+    <div id="screen-professor-panel" class="screen">
+      <div class="prof-panel">
+        <div class="prof-panel-header">
+          <div class="prof-panel-title">
+            <span>👨‍🏫 Panel Profesor</span>
+            <div class="live-indicator"><div class="live-dot"></div> EN VIVO</div>
+          </div>
+          <div id="prof-session-info" class="prof-session-info">Sesión no iniciada</div>
+        </div>
+        <div id="prof-class-section">
+          <div id="prof-class-selector" class="prof-class-selector">
+            <h3 class="prof-section-title">Selecciona la Clase</h3>
+            <div id="prof-class-list" class="prof-class-list"></div>
+          </div>
+          <div id="prof-lesson-panel" class="prof-lesson-panel" style="display:none">
+            <div class="prof-current-class" id="prof-current-class-info"></div>
+            <div class="prof-nav-controls">
+              <button class="prof-nav-btn" id="prof-btn-prev" onclick="ProfControl.prevSlide()">← Anterior</button>
+              <div class="prof-slide-info" id="prof-slide-info">1/10</div>
+              <button class="prof-nav-btn prof-nav-next" id="prof-btn-next" onclick="ProfControl.nextSlide()">Siguiente →</button>
+            </div>
+            <div class="prof-guide-card" id="prof-guide-card">
+              <div class="prof-guide-label">📋 GUÍA DEL PROFESOR</div>
+              <div id="prof-guide-content" class="prof-guide-content"></div>
+            </div>
+            <div id="prof-activity-launcher" class="prof-activity-launcher" style="display:none">
+              <div class="prof-activity-title">⚡ Actividad disponible</div>
+              <div id="prof-activity-preview" class="prof-activity-preview"></div>
+              <div class="prof-timer-selector">
+                <label>Tiempo:</label>
+                <div class="prof-timer-btns">
+                  <button class="timer-preset active" onclick="ProfControl.setTimer(20,this)">20s</button>
+                  <button class="timer-preset" onclick="ProfControl.setTimer(30,this)">30s</button>
+                  <button class="timer-preset" onclick="ProfControl.setTimer(45,this)">45s</button>
+                  <button class="timer-preset" onclick="ProfControl.setTimer(60,this)">1min</button>
+                </div>
+              </div>
+              <button class="btn-launch-activity" id="btn-launch-activity" onclick="ProfControl.launchActivity()">🚨 LANZAR ACTIVIDAD</button>
+              <button class="btn-close-activity" id="btn-close-activity" onclick="ProfControl.closeActivity()" style="display:none">✅ Cerrar Actividad / Ver Resultados</button>
+            </div>
+            <div class="prof-students-panel">
+              <div class="prof-section-title">👥 Estudiantes <span id="prof-student-count-badge" class="count-badge">0</span></div>
+              <div id="prof-student-list" class="prof-student-list"></div>
+            </div>
+            <button class="btn btn-nav btn-block" style="margin-top:12px" onclick="ProfControl.backToClasses()">← Cambiar Clase</button>
+            <button class="btn-reset-session" onclick="ProfControl.confirmReset()">⚠️ Resetear Sesión</button>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div id="screen-student-live" class="screen">
+      <div class="student-live-container">
+        <div class="student-live-header">
+          <div id="student-name-badge" class="student-name-badge">🎓 Estudiante</div>
+          <div id="student-score-badge" class="student-score-badge">⭐ 0 pts</div>
+        </div>
+        <div id="sl-waiting" class="sl-state">
+          <div class="sl-waiting-icon">🕐</div>
+          <h3>¡Conectado!</h3>
+          <p id="sl-waiting-msg">Esperando que el profesor inicie la clase...</p>
+          <div class="sl-pulse-ring"></div>
+        </div>
+        <div id="sl-listening" class="sl-state" style="display:none">
+          <div class="sl-listen-icon">👁️</div>
+          <h3>Clase en curso</h3>
+          <p class="sl-listen-msg">Sigue la clase en la pantalla grande</p>
+          <div id="sl-topic" class="sl-topic"></div>
+          <div class="sl-instruction">El profesor lanzará una actividad pronto...</div>
+        </div>
+        <div id="sl-activity" class="sl-state" style="display:none">
+          <div class="sl-activity-header">
+            <div class="sl-activity-badge">⚡ ¡RESPONDE AHORA!</div>
+            <div id="sl-timer-display" class="sl-timer-display">30</div>
+          </div>
+          <div id="sl-question" class="sl-question"></div>
+          <div id="sl-options" class="sl-options"></div>
+          <div id="sl-text-area" style="display:none">
+            <textarea id="sl-text-input" class="sl-text-input" placeholder="Escribe tu respuesta..."></textarea>
+            <button class="sl-submit-btn" onclick="StudentLive.submitText()">✅ Enviar Respuesta</button>
+          </div>
+          <div id="sl-answered-msg" class="sl-answered-msg" style="display:none">✅ Respuesta enviada...</div>
+        </div>
+        <div id="sl-results" class="sl-state" style="display:none">
+          <div id="sl-results-content" class="sl-results-content"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <script type="module" src="app.js"></script>
 </body>
-
 </html>
