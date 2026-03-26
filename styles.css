@@ -345,9 +345,7 @@ body::before {
   line-height: 1.7;
 }
 
-.proj-info-slide {
-  /* Amplify the existing HTML styles for projector */
-}
+/* Amplify the existing HTML styles for projector */
 
 /* Increase font sizes of content for projector */
 .proj-info-slide h3, .proj-info-slide h4 {
@@ -1409,4 +1407,121 @@ body::before {
 }
 .btn:hover, .sl-option-btn:hover:not(:disabled), .res-card:hover {
   transform: scale(1.02) translateY(-2px);
+}
+
+/* ================================================
+   PANEL DE RESPUESTAS DEL PROFESOR — Tiempo Real
+   ================================================ */
+.prof-responses-panel {
+  background: rgba(26,115,232,0.07);
+  border: 1.5px solid rgba(26,115,232,0.3);
+  border-radius: var(--radius);
+  padding: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  animation: fadeIn 0.3s ease;
+}
+.prof-resp-summary {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--text-dim);
+  text-align: center;
+  padding: 6px 0 2px;
+}
+.prof-resp-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  max-height: 280px;
+  overflow-y: auto;
+}
+.prof-resp-list::-webkit-scrollbar { width: 4px; }
+.prof-resp-list::-webkit-scrollbar-thumb { background: rgba(26,115,232,0.3); border-radius: 99px; }
+.prof-resp-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  border-radius: var(--radius-sm);
+  font-size: 13px;
+  animation: fadeIn 0.25s ease;
+}
+.prof-resp-correct { background: rgba(0,200,83,0.12); border: 1px solid rgba(0,200,83,0.35); }
+.prof-resp-wrong   { background: rgba(255,23,68,0.08); border: 1px solid rgba(255,23,68,0.2); }
+.prof-resp-icon { font-size: 18px; flex-shrink: 0; }
+.prof-resp-info { flex: 1; min-width: 0; }
+.prof-resp-name { font-weight: 700; color: var(--text-bright); font-size: 13px; }
+.prof-resp-answer {
+  font-size: 12px;
+  color: var(--text-dim);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.prof-resp-pts { font-size: 13px; font-weight: 800; color: var(--yellow); white-space: nowrap; }
+
+/* ================================================
+   TABLET RESPONSIVENESS — Panel del Profesor
+   ================================================ */
+@media (min-width: 600px) {
+  /* Wider professor panel on tablet */
+  .prof-panel {
+    max-width: 680px;
+    padding-bottom: 60px;
+  }
+
+  /* Larger touch targets */
+  .prof-nav-btn {
+    padding: 16px 14px;
+    font-size: 16px;
+  }
+  .prof-guide-card {
+    max-height: 380px;
+    padding: 20px;
+  }
+  .prof-guide-content { font-size: 15px; }
+  .prof-guide-content h3, .prof-guide-content h4 { font-size: 16px; }
+
+  /* 2-column class selector grid on tablet */
+  .prof-class-list {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+  }
+
+  /* 2-column student list grid on tablet */
+  .prof-student-list {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+  }
+
+  /* Bigger activity launcher */
+  .prof-activity-launcher { padding: 20px; gap: 14px; }
+  .btn-launch-activity, .btn-close-activity { font-size: 16px; padding: 18px; }
+
+  /* Response panel — 2 columns on tablet */
+  .prof-resp-list {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+    max-height: 400px;
+  }
+  .prof-resp-summary { font-size: 14px; }
+
+  /* Timer presets — bigger */
+  .timer-preset { padding: 12px 6px; font-size: 15px; }
+
+  /* Score badge bigger */
+  .prof-student-score { font-size: 14px; }
+  .prof-panel-title { font-size: 18px; }
+}
+
+@media (min-width: 900px) {
+  /* Wide tablet / laptop — 3-column class list */
+  .prof-class-list {
+    grid-template-columns: 1fr 1fr 1fr;
+  }
+  .prof-panel { max-width: 860px; }
 }
