@@ -50,12 +50,26 @@ const App = {
     document.getElementById('student-login-status').textContent = '🔄 Conectando...';
     try {
       const key = await Sync.registerStudent(name);
+      localStorage.setItem('omt_student_name', name);
+      localStorage.setItem('omt_student_key', key);
       StudentLive.init(name, key);
       showScreen('screen-student-live');
     } catch(e) {
       document.getElementById('student-login-error').textContent = '⚠️ Error de conexión. Verifica tu internet.';
       document.getElementById('student-login-status').textContent = '';
     }
+  },
+
+  async reconnect(name, key) {
+    document.getElementById('reconnect-banner').style.display = 'none';
+    StudentLive.init(name, key);
+    showScreen('screen-student-live');
+  },
+
+  clearSession() {
+    localStorage.removeItem('omt_student_name');
+    localStorage.removeItem('omt_student_key');
+    document.getElementById('reconnect-banner').style.display = 'none';
   },
 
   professorEnter() {
@@ -82,6 +96,45 @@ const ProjectorView = {
     Sync.listenStudents(students => this.updateStudentCount(students));
     Sync.listenActivity(activity => this.handleActivity(activity));
     Sync.listenResponses(responses => this.handleResponses(responses));
+    Sync.listenHotSeat(hotSeat => this.handleHotSeatProjector(hotSeat));
+  },
+
+  handleHotSeatProjector(hotSeat) {
+    if (!hotSeat || !hotSeat.active) {
+      if (this.hotSeatActive) {
+        this.hotSeatActive = false;
+      }
+      return;
+    }
+    this.hotSeatActive = true;
+    
+    document.getElementById('proj-waiting').style.display = 'none';
+    document.getElementById('proj-content-area').style.display = 'none';
+    document.getElementById('proj-results-area').style.display = 'none';
+    document.getElementById('proj-activity-area').style.display = 'flex';
+    
+    document.querySelector('.proj-activity-badge').textContent = '🔥 SILLA CALIENTE';
+    document.querySelector('.proj-activity-badge').style.background = '#ff6d00';
+    document.getElementById('proj-timer-num').textContent = '∞';
+    
+    document.getElementById('proj-activity-question').textContent = hotSeat.question;
+    
+    const optionsEl = document.getElementById('proj-activity-options');
+    optionsEl.innerHTML = `
+      <div class="proj-hot-seat-roulette">
+        <div class="roulette-lbl">Seleccionado:</div>
+        <div class="roulette-name animated-name">Buscando...</div>
+      </div>
+    `;
+    
+    setTimeout(async () => {
+      const students = await Sync.getStudents();
+      const s = students[hotSeat.studentKey];
+      if (s) {
+        document.querySelector('.roulette-name').textContent = s.name;
+        document.querySelector('.roulette-name').style.color = '#ff6d00';
+      }
+    }, 1500);
   },
 
   handleSession(session) {
@@ -152,6 +205,7 @@ const ProjectorView = {
   },
 
   handleActivity(activity) {
+    if (this.hotSeatActive) return;
     if (!activity || !activity.active) return;
 
     document.getElementById('proj-waiting').style.display = 'none';
@@ -159,6 +213,8 @@ const ProjectorView = {
     document.getElementById('proj-activity-area').style.display = 'flex';
     document.getElementById('proj-results-area').style.display = 'none';
 
+    document.querySelector('.proj-activity-badge').style.background = 'var(--accent)';
+    document.querySelector('.proj-activity-badge').textContent = '⚡ ACTIVIDAD EN VIVO';
     document.getElementById('proj-activity-question').textContent = activity.question;
 
     const optionsEl = document.getElementById('proj-activity-options');
@@ -180,11 +236,13 @@ const ProjectorView = {
     const circumference = 2 * Math.PI * 42;
     circle.style.strokeDasharray = circumference;
 
-    const totalMs = timerEnd - Date.now();
+    const serverNow = Sync.getServerNow();
+    const totalMs = timerEnd - serverNow;
     const totalSecs = Math.max(1, Math.round(totalMs / 1000));
 
     const update = () => {
-      const remaining = Math.max(0, timerEnd - Date.now());
+      const currentServerNow = Sync.getServerNow();
+      const remaining = Math.max(0, timerEnd - currentServerNow);
       const secs = Math.ceil(remaining / 1000);
       numEl.textContent = secs;
 
@@ -321,14 +379,14 @@ const ProjectorView = {
               const correctAnswer = activity.options[activity.correctIndex];
               answerDetail = `
                 <div class="res-card-answer ${isCorrect ? 'answer-correct' : 'answer-wrong'}">
-                  <div class="res-card-answer-label">Su respuesta:</div>
+                  <div class="res-card-answer-label:">Su respuesta:</div>
                   <div class="res-card-answer-text">${String.fromCharCode(65 + r.answer)}. ${studentAnswer}</div>
                   ${!isCorrect ? `<div class="res-card-correct-show">✅ Correcta: ${String.fromCharCode(65 + activity.correctIndex)}. ${correctAnswer}</div>` : ''}
                 </div>`;
             } else if (r.type === 'text') {
               answerDetail = `
                 <div class="res-card-answer ${isCorrect ? 'answer-correct' : 'answer-wrong'}">
-                  <div class="res-card-answer-label">Su respuesta:</div>
+                  <div class="res-card-answer-label:">Su respuesta:</div>
                   <div class="res-card-answer-text">"${r.answer}"</div>
                 </div>`;
             }
@@ -536,8 +594,39 @@ const ProfControl = {
     this.activityActive = false;
     document.getElementById('btn-launch-activity').style.display = 'block';
     document.getElementById('btn-close-activity').style.display = 'none';
-    // Mostrar resultados en el proyector, en estudiantes
-    setTimeout(() => Sync.updateSession({ mode: 'content', slideIndex: this.currentSlide }), 5000);
+    
+    // F3: Make results permanent until professor continues
+    const btnContinue = document.getElementById('btn-continue-class');
+    if (btnContinue) btnContinue.style.display = 'block';
+  },
+
+  async continueAfterResults() {
+    const btnContinue = document.getElementById('btn-continue-class');
+    if (btnContinue) btnContinue.style.display = 'none';
+    await Sync.updateSession({ mode: 'content', slideIndex: this.currentSlide });
+  },
+
+  // F4: Silla Caliente
+  async launchHotSeat() {
+    const students = await Sync.getStudents();
+    const list = Object.values(students).filter(s => s.online);
+    if (list.length === 0) return alert('No hay estudiantes en línea');
+    
+    const randomStudent = list[Math.floor(Math.random() * list.length)];
+    const slide = this.currentClass.studentSlides[this.currentSlide];
+    const question = slide && slide.type === 'exercise' ? slide.question : "Pregunta sorpresa de atención.";
+    
+    await Sync.launchHotSeat(randomStudent.key, question);
+    this.activityActive = true;
+    document.getElementById('btn-hot-seat').style.display = 'none';
+    document.getElementById('btn-close-hot-seat').style.display = 'block';
+  },
+
+  async closeHotSeat() {
+    await Sync.closeHotSeat();
+    this.activityActive = false;
+    document.getElementById('btn-hot-seat').style.display = 'block';
+    document.getElementById('btn-close-hot-seat').style.display = 'none';
   },
 
   updateStudentList(students) {
@@ -587,8 +676,50 @@ const StudentLive = {
     document.getElementById('student-name-badge').textContent = `🎓 ${name.split(' ')[0]}`;
     document.getElementById('student-score-badge').textContent = '⭐ 0 pts';
 
-    Sync.listenSession(session => this.handleSession(session));
+    Sync.listenSession(session => {
+      if (!this.hotSeatActive) this.handleSession(session);
+      this.lastSession = session;
+    });
     Sync.listenActivity(activity => this.handleActivity(activity));
+    Sync.listenHotSeat(hotSeat => this.handleHotSeat(hotSeat));
+  },
+
+  handleHotSeat(hotSeat) {
+    if (!hotSeat || !hotSeat.active) {
+      if (this.hotSeatActive) {
+        this.hotSeatActive = false;
+        this.answered = false;
+        if (this.lastSession) this.handleSession(this.lastSession);
+      }
+      return;
+    }
+    
+    this.hotSeatActive = true;
+    if (hotSeat.studentKey === this.key) {
+      // Play sound
+      try {
+        const ctx = new (window.AudioContext || window.webkitAudioContext)();
+        const osc = ctx.createOscillator();
+        osc.connect(ctx.destination);
+        osc.frequency.setValueAtTime(880, ctx.currentTime);
+        osc.start();
+        osc.stop(ctx.currentTime + 0.3);
+      } catch(e) {}
+
+      this.showState('sl-activity');
+      document.querySelector('#sl-activity .sl-activity-badge').innerHTML = `🔥 SILLA CALIENTE`;
+      document.querySelector('#sl-activity .sl-activity-badge').style.background = '#ff6d00';
+      document.getElementById('sl-question').textContent = "¡Te toca a ti! " + hotSeat.question;
+      document.getElementById('sl-options').innerHTML = '';
+      document.getElementById('sl-text-area').style.display = 'block';
+      document.getElementById('sl-text-input').value = '';
+      document.getElementById('sl-timer-display').textContent = '∞';
+      document.getElementById('sl-timer-display').style.color = '#ff6d00';
+    } else {
+      this.showState('sl-listening');
+      document.getElementById('sl-topic').textContent = `🔥 Silla Caliente activa`;
+      document.querySelector('.sl-instruction').textContent = `Esperando respuesta de otro estudiante...`;
+    }
   },
 
   handleSession(session) {
@@ -654,7 +785,7 @@ const StudentLive = {
     const el = document.getElementById('sl-timer-display');
 
     const update = () => {
-      const remaining = Math.max(0, timerEnd - Date.now());
+      const remaining = Math.max(0, timerEnd - Sync.getServerNow());
       const secs = Math.ceil(remaining / 1000);
       el.textContent = secs;
 
@@ -726,7 +857,7 @@ const StudentLive = {
 
     this.answered = true;
     // For text, give partial credit (teacher evaluates)
-    const score = text.length >= 10 ? Math.round((activity.points || 10) * 0.5) : 0;
+    const score = text.length >= 10 ? Math.round((activity ? activity.points || 10 : 10) * 0.5) : 0;
 
     await Sync.submitResponse(this.key, this.name, {
       answer: text,
@@ -772,6 +903,30 @@ const StudentLive = {
 // INIT — Keyboard events
 // ========================================
 document.addEventListener('DOMContentLoaded', () => {
+  // Bug 1: Reconexión
+  const savedName = localStorage.getItem('omt_student_name');
+  const savedKey = localStorage.getItem('omt_student_key');
+  
+  if (savedName && savedKey) {
+    Sync.initOffset();
+    Sync.listenSession(session => {
+      if (session && session.active) {
+        const banner = document.getElementById('reconnect-banner');
+        if (banner && banner.style.display !== 'none') {
+          banner.style.display = 'flex';
+          banner.innerHTML = `
+            <div class="reconnect-box">
+              <p>Clase en curso detectada.</p>
+              <p><strong>¿Deseas continuar como ${savedName.split(' ')[0]}?</strong></p>
+              <button class="btn btn-primary" style="margin-bottom:8px;" onclick="App.reconnect('${savedName}', '${savedKey}')">▶ Continuar Clase</button>
+              <button class="btn btn-secondary" onclick="App.clearSession()">No, soy otro estudiante</button>
+            </div>
+          `;
+        }
+      }
+    });
+  }
+
   document.getElementById('student-name').addEventListener('keyup', e => {
     if (e.key === 'Enter') App.studentJoinClass();
   });

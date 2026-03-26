@@ -12,6 +12,7 @@ const SESSION_KEY = 'omt_session_2024';
 
 const Sync = {
   listeners: [],
+  serverTimeOffset: 0,
 
   // ---- PATHS ----
   paths: {
@@ -21,10 +22,24 @@ const Sync = {
     activity: () => ref(db, `${SESSION_KEY}/activity`),
     responses: () => ref(db, `${SESSION_KEY}/responses`),
     response: (key) => ref(db, `${SESSION_KEY}/responses/${key}`),
+    hotSeat: () => ref(db, `${SESSION_KEY}/hotSeat`),
+  },
+
+  // ---- TIEMPO REAL SERVIDOR ----
+  initOffset() {
+    const offsetRef = ref(db, '.info/serverTimeOffset');
+    onValue(offsetRef, (snap) => {
+      this.serverTimeOffset = snap.val() || 0;
+    });
+  },
+
+  getServerNow() {
+    return Date.now() + this.serverTimeOffset;
   },
 
   // ---- PROFESOR: Iniciar sesión ----
   async initSession() {
+    this.initOffset();
     await set(this.paths.session(), {
       active: true,
       classId: null,
@@ -32,13 +47,13 @@ const Sync = {
       mode: 'waiting', // waiting | content | activity | results
       timerEnd: null,
       timerActive: false,
-      updatedAt: Date.now()
+      updatedAt: this.getServerNow()
     });
     await set(ref(db, `${SESSION_KEY}/students`), null);
     await set(ref(db, `${SESSION_KEY}/activity`), null);
     await set(ref(db, `${SESSION_KEY}/responses`), null);
+    await set(this.paths.hotSeat(), null);
   },
-
   // ---- PROFESOR: Resetear sesión ----
   async resetSession() {
     await set(ref(db, SESSION_KEY), null);
@@ -46,19 +61,19 @@ const Sync = {
 
   // ---- PROFESOR: Actualizar estado de sesión ----
   async updateSession(data) {
-    await update(this.paths.session(), { ...data, updatedAt: Date.now() });
+    await update(this.paths.session(), { ...data, updatedAt: this.getServerNow() });
   },
 
   // ---- PROFESOR: Lanzar actividad ----
   async launchActivity(activityData, timerSeconds) {
-    const timerEnd = Date.now() + (timerSeconds * 1000);
+    const timerEnd = this.getServerNow() + (timerSeconds * 1000);
     await set(ref(db, `${SESSION_KEY}/responses`), null);
     await set(this.paths.activity(), {
       ...activityData,
       active: true,
       timerEnd,
       timerSeconds,
-      launchedAt: Date.now()
+      launchedAt: this.getServerNow()
     });
     await this.updateSession({
       mode: 'activity',
@@ -73,15 +88,30 @@ const Sync = {
     await this.updateSession({ mode: 'results', timerActive: false, timerEnd: null });
   },
 
+  // ---- PROFESOR: Silla Caliente ----
+  async launchHotSeat(studentKey, question) {
+    await set(this.paths.hotSeat(), {
+      active: true,
+      studentKey,
+      question,
+      launchedAt: this.getServerNow()
+    });
+  },
+
+  async closeHotSeat() {
+    await set(this.paths.hotSeat(), { active: false });
+  },
+
   // ---- ESTUDIANTE: Registrarse ----
   async registerStudent(name) {
+    this.initOffset();
     const key = name.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9]/g, '_');
     await set(this.paths.student(key), {
       name,
       key,
       score: 0,
       online: true,
-      joinedAt: Date.now()
+      joinedAt: this.getServerNow()
     });
     return key;
   },
@@ -99,7 +129,7 @@ const Sync = {
       studentKey,
       studentName,
       ...answerData,
-      answeredAt: Date.now()
+      answeredAt: this.getServerNow()
     });
   },
 
@@ -137,6 +167,15 @@ const Sync = {
   // ---- ESCUCHAR: Actividad ----
   listenActivity(callback) {
     const unsub = onValue(this.paths.activity(), (snap) => {
+      callback(snap.exists() ? snap.val() : null);
+    });
+    this.listeners.push(unsub);
+    return unsub;
+  },
+
+  // ---- ESCUCHAR: Silla Caliente ----
+  listenHotSeat(callback) {
+    const unsub = onValue(this.paths.hotSeat(), (snap) => {
       callback(snap.exists() ? snap.val() : null);
     });
     this.listeners.push(unsub);

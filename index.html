@@ -10,6 +10,7 @@
 </head>
 
 <body>
+  <div id="reconnect-banner" class="reconnect-banner" style="display:none; position:fixed; top:0; left:0; width:100%; z-index:9999; background:rgba(0,0,0,0.9); height:100%; align-items:center; justify-content:center; backdrop-filter:blur(10px);"></div>
   <div id="app">
 
     <!-- ═══════════════════════════════════════════ -->
@@ -194,8 +195,14 @@
               <button class="btn-launch-activity" id="btn-launch-activity" onclick="ProfControl.launchActivity()">
                 🚨 LANZAR ACTIVIDAD
               </button>
-              <button class="btn-close-activity" id="btn-close-activity" onclick="ProfControl.closeActivity()" style="display:none">
-                ✅ Cerrar Actividad / Ver Resultados
+              <button class="btn btn-warning" id="btn-hot-seat" onclick="ProfControl.launchHotSeat()" style="margin-top:10px; width:100%; background:#ff6d00; color:#fff;">
+                🔥 SILLA CALIENTE (Elegir un estudiante central)
+              </button>
+              <button class="btn-close-activity" id="btn-close-hot-seat" onclick="ProfControl.closeHotSeat()" style="display:none; background:#ff6d00; color:#fff;">
+                ✅ Terminar Silla Caliente
+              </button>
+              <button class="btn btn-primary" id="btn-continue-class" onclick="ProfControl.continueAfterResults()" style="display:none; margin-top:10px; width:100%;">
+                ▶ Continuar Clase (Quitar Resultados)
               </button>
             </div>
 

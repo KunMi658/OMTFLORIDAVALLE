@@ -1372,3 +1372,41 @@ body::before {
 /* Scrollbar for results area */
 #proj-results-area::-webkit-scrollbar { width: 6px; }
 #proj-results-area::-webkit-scrollbar-thumb { background: rgba(26,115,232,0.3); border-radius: 99px; }
+
+/* ================================================
+   NUEVAS FUNCIONES: Silla Caliente & Reconexión
+   ================================================ */
+.reconnect-box {
+  background: var(--bg-card);
+  border: 1px solid rgba(255,255,255,0.1);
+  padding: 30px;
+  border-radius: 20px;
+  text-align: center;
+  box-shadow: 0 10px 40px rgba(0,0,0,0.5);
+  animation: cardBounceIn 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+.reconnect-box p { margin-bottom: 12px; font-size: 16px; color: var(--text-bright); }
+
+/* Silla caliente ruleta */
+.proj-hot-seat-roulette {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  padding: 40px;
+  background: rgba(255, 109, 0, 0.1);
+  border: 2px solid rgba(255, 109, 0, 0.4);
+  border-radius: 24px;
+  width: 100%;
+}
+.roulette-lbl { font-size: clamp(14px, 2vw, 24px); color: var(--text-dim); text-transform: uppercase; letter-spacing: 2px; }
+.roulette-name { font-size: clamp(24px, 4vw, 52px); font-weight: 900; color: #fff; animation: pulse-launch 1s infinite alternate; }
+
+/* Transiciones Suaves Apple-style */
+.btn, .prof-class-card, .prof-student-item, .sl-option-btn, .res-card, .prof-nav-btn {
+  transition: all 0.4s cubic-bezier(0.25, 0.8, 0.25, 1) !important;
+}
+.btn:hover, .sl-option-btn:hover:not(:disabled), .res-card:hover {
+  transform: scale(1.02) translateY(-2px);
+}
