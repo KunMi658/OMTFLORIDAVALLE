@@ -24,11 +24,16 @@ const COURSE_DATA = {
                 },
                 {
                     type: "exercise",
-                    exerciseType: "text",
-                    question: "Con tus propias palabras, ¿qué es un OMT y cuál es su función principal?",
-                    keywords: ["operador", "tecnolog", "camara", "vigilar", "monitor", "seguridad", "CCTV", "controlar"],
-                    minKeywords: 2,
-                    correctAnswer: "Un OMT es un Operador de Medios Tecnológicos que gestiona equipos como cámaras CCTV para garantizar la seguridad y cumplimiento normativo.",
+                    exerciseType: "multiple",
+                    question: "¿Cuál es la definición correcta de un OMT?",
+                    options: [
+                        "Oficial de Mantenimiento Técnico que repara equipos eléctricos en instalaciones",
+                        "Operador de Medios Tecnológicos que gestiona equipos como cámaras CCTV para garantizar la seguridad",
+                        "Oficial de Monitoreo y Telecomunicaciones que atiende llamadas de emergencia",
+                        "Operador de Maquinaria y Transporte especializado en logística de seguridad"
+                    ],
+                    correctIndex: 1,
+                    explanation: "El OMT — Operador de Medios Tecnológicos — opera equipos tecnológicos (cámaras CCTV, alarmas, sensores) para garantizar la seguridad de instalaciones.",
                     points: 10
                 },
                 {
@@ -71,10 +76,16 @@ const COURSE_DATA = {
                 },
                 {
                     type: "exercise",
-                    exerciseType: "order",
-                    question: "Ordena los 4 pasos de la Cadena de Acción PREVENIR en el orden correcto:",
-                    items: ["Resultado", "Acción", "Prevención", "Disuasión"],
-                    correctOrder: ["Prevención", "Disuasión", "Acción", "Resultado"],
+                    exerciseType: "multiple",
+                    question: "¿Cuál es el orden correcto de la Cadena de Acción PREVENIR?",
+                    options: [
+                        "Acción → Prevención → Disuasión → Resultado",
+                        "Prevención → Acción → Disuasión → Resultado",
+                        "Prevención → Disuasión → Acción → Resultado",
+                        "Disuasión → Prevención → Resultado → Acción"
+                    ],
+                    correctIndex: 2,
+                    explanation: "La cadena correcta es: PREVENCIÓN (anticipar) → DISUASIÓN (intimidar) → ACCIÓN (intervenir) → RESULTADO (documentar).",
                     points: 15
                 },
                 {
@@ -123,11 +134,16 @@ const COURSE_DATA = {
                 },
                 {
                     type: "exercise",
-                    exerciseType: "text",
-                    question: "Nombra al menos 3 objetivos del sistema CCTV en tus propias palabras:",
-                    keywords: ["vigil", "perime", "acceso", "restri", "valios", "distancia", "grab", "almacen", "control", "protec"],
-                    minKeywords: 3,
-                    correctAnswer: "Vigilancia perimetral, control de acceso, monitoreo de áreas restringidas, protección de objetos valiosos, supervisión a distancia y grabación de evidencia.",
+                    exerciseType: "multiple",
+                    question: "¿Cuál de las siguientes NO es un objetivo del sistema CCTV?",
+                    options: [
+                        "Vigilancia perimetral y control de acceso",
+                        "Grabación y almacenamiento de evidencia",
+                        "Reparación de equipos eléctricos dañados",
+                        "Supervisión a distancia de zonas restringidas"
+                    ],
+                    correctIndex: 2,
+                    explanation: "El CCTV tiene 6 objetivos: vigilancia perimetral, control de acceso, áreas restringidas, protección de objetos valiosos, supervisión remota y grabación. Reparar equipos NO es función del CCTV.",
                     points: 10
                 }
             ],
@@ -236,11 +252,16 @@ const COURSE_DATA = {
                 },
                 {
                     type: "exercise",
-                    exerciseType: "text",
-                    question: "Explica con tus palabras: ¿Qué es ONVIF y por qué es importante para un sistema CCTV?",
-                    keywords: ["estandar", "compatib", "marca", "diferent", "camara", "grabador", "funcionar", "comunic", "idioma", "universal"],
-                    minKeywords: 2,
-                    correctAnswer: 'ONVIF es un estándar de compatibilidad que permite que cámaras y grabadores de diferentes marcas funcionen juntos, como un "idioma común".',
+                    exerciseType: "multiple",
+                    question: "¿Para qué sirve el estándar ONVIF en un sistema CCTV?",
+                    options: [
+                        "Para aumentar la resolución de las cámaras a 4K automáticamente",
+                        "Para permitir que cámaras y grabadores de diferentes marcas funcionen juntos",
+                        "Para cifrar las grabaciones y protegerlas de hackers",
+                        "Para reducir el consumo de energía de las cámaras IP"
+                    ],
+                    correctIndex: 1,
+                    explanation: "ONVIF es el \"idioma universal\" del CCTV. Permite que equipos de marcas diferentes (Hikvision, Dahua, Bosch, etc.) sean compatibles entre sí.",
                     points: 10
                 },
                 {
@@ -263,15 +284,16 @@ const COURSE_DATA = {
                 },
                 {
                     type: "exercise",
-                    exerciseType: "classify",
-                    question: "Clasifica cada situación con el tipo de cámara más adecuado:",
-                    items: [
-                        { text: "Entrada principal de una empresa (que el ladrón la vea)", answer: "Bullet" },
-                        { text: "Interior de una joyería (que no se note hacia dónde mira)", answer: "Domo" },
-                        { text: "Parqueadero grande donde necesitas seguir un vehículo", answer: "PTZ" },
-                        { text: "Pasillo de oficina con techo bajo", answer: "Domo" }
+                    exerciseType: "multiple",
+                    question: "En el interior de una joyería quieres vigilar sin que el cliente sepa hacia dónde apunta la cámara. ¿Cuál usas?",
+                    options: [
+                        "Bullet — porque es visible y disuade",
+                        "PTZ — porque tiene zoom óptico potente",
+                        "Domo — porque su cúpula oscura oculta la dirección de grabación",
+                        "Analógica — porque es más económica"
                     ],
-                    options: ["Domo", "Bullet", "PTZ"],
+                    correctIndex: 2,
+                    explanation: "La cámara Domo es la correcta en interiores donde se necesita discreción. El observado no sabe hacia dónde apunta gracias a su cúpula oscura.",
                     points: 15
                 },
                 {
@@ -368,17 +390,16 @@ const COURSE_DATA = {
                 },
                 {
                     type: "exercise",
-                    exerciseType: "classify",
-                    question: "Clasifica cada evento según el color del semáforo:",
-                    items: [
-                        { text: "Llega señal de ROBO en una joyería a las 11PM", answer: "🔴 ROJO" },
-                        { text: "Fallo de batería en oficinas a las 9AM", answer: "🟡 AMARILLO" },
-                        { text: "Local comercial abre a las 8AM como cada día", answer: "🟢 VERDE" },
-                        { text: "Botón de PÁNICO activado en un banco", answer: "🔴 ROJO" },
-                        { text: "Puerta no cerrada correctamente al final del día", answer: "🟡 AMARILLO" },
-                        { text: "Test semanal del sistema de alarmas", answer: "🟢 VERDE" }
+                    exerciseType: "multiple",
+                    question: "Son las 11PM y llega señal de ROBO en una joyería. ¿Cuál es tu primera acción como OMT?",
+                    options: [
+                        "Llamo al local para verificar si es una falsa alarma",
+                        "Ignoro la señal y espero una segunda confirmación",
+                        "No llamo al sitio — notifico al supervisor y despacho la policía",
+                        "Envío un guarda solo para que verifique en persona"
                     ],
-                    options: ["🔴 ROJO", "🟡 AMARILLO", "🟢 VERDE"],
+                    correctIndex: 2,
+                    explanation: "Señal de ROBO = ROJO. NUNCA se llama al sitio (puede alertar al delincuente). La acción correcta: notificar al supervisor y despachar policía de inmediato.",
                     points: 20
                 },
                 {
@@ -398,11 +419,16 @@ const COURSE_DATA = {
                 },
                 {
                     type: "exercise",
-                    exerciseType: "text",
-                    question: "Son las 11PM y recibes una señal de ROBO en una tienda. Describe paso a paso qué harías como OMT:",
-                    keywords: ["no llam", "verific", "camara", "supervis", "polic", "document", "hora", "notific"],
-                    minKeywords: 3,
-                    correctAnswer: "1) No llamar al sitio. 2) Verificar en cámara la situación. 3) Notificar al supervisor con ubicación exacta. 4) Contactar policía. 5) Documentar todo: hora, acciones, personas notificadas.",
+                    exerciseType: "multiple",
+                    question: "¿Cuál es el SEGUNDO paso del Protocolo ROJO, después de NO llamar al sitio?",
+                    options: [
+                        "Contactar a la policía inmediatamente",
+                        "Verificar la situación en cámara",
+                        "Documentar todo en la minuta",
+                        "Esperar instrucciones del supervisor"
+                    ],
+                    correctIndex: 1,
+                    explanation: "El orden del Protocolo ROJO es: 1) NO llamar. 2) Verificar en cámara. 3) Notificar al supervisor. 4) Contactar policía. 5) Documentar todo.",
                     points: 15
                 },
                 {
@@ -435,10 +461,16 @@ const COURSE_DATA = {
                 },
                 {
                     type: "exercise",
-                    exerciseType: "order",
-                    question: "Ordena los pasos del Protocolo ROJO en el orden correcto:",
-                    items: ["Documentar todo", "Contactar Policía/Red de Apoyo", "NO llamar al sitio", "Notificar al supervisor", "Verificar en cámara"],
-                    correctOrder: ["NO llamar al sitio", "Verificar en cámara", "Notificar al supervisor", "Contactar Policía/Red de Apoyo", "Documentar todo"],
+                    exerciseType: "multiple",
+                    question: "¿Cuál de estas opciones describe correctamente los 5 pasos del Protocolo ROJO en orden?",
+                    options: [
+                        "Llamar al sitio → Verificar cámara → Notificar supervisor → Policía → Documentar",
+                        "NO llamar → Verificar cámara → Notificar supervisor → Contactar policía → Documentar",
+                        "Documentar → Policía → Supervisor → Verificar → NO llamar",
+                        "Verificar cámara → Llamar al sitio → Policía → Supervisor → Documentar"
+                    ],
+                    correctIndex: 1,
+                    explanation: "Protocolo ROJO: 1) NO llamar al sitio. 2) Verificar en cámara. 3) Notificar al supervisor. 4) Contactar policía/bomberos. 5) Documentar TODO con hora exacta.",
                     points: 15
                 }
             ],
@@ -509,12 +541,16 @@ const COURSE_DATA = {
                 },
                 {
                     type: "exercise",
-                    exerciseType: "text",
-                    question: "Deletrea la palabra 'CCTV' usando el código fonético internacional:",
-                    keywords: ["charlie", "charlie", "tango", "victor"],
-                    minKeywords: 4,
-                    exactMatch: "charlie charlie tango victor",
-                    correctAnswer: "Charlie-Charlie-Tango-Victor",
+                    exerciseType: "multiple",
+                    question: "¿Cómo se deletrea correctamente 'CCTV' usando el código fonético internacional?",
+                    options: [
+                        "Colombia-Colombia-Tango-Venezuela",
+                        "Charlie-Charlie-Tango-Victor",
+                        "Charlie-Carol-Tango-Victor",
+                        "Charlie-Charlie-Toronto-Victor"
+                    ],
+                    correctIndex: 1,
+                    explanation: "C=Charlie, C=Charlie, T=Tango, V=Victor. El código fonético internacional es estándar: Alpha, Bravo, Charlie, Delta, Echo, Foxtrot...",
                     points: 10
                 },
                 {
@@ -532,10 +568,16 @@ const COURSE_DATA = {
                 },
                 {
                     type: "exercise",
-                    exerciseType: "order",
-                    question: "Ordena los 4 pasos de un mensaje radial correctamente:",
-                    items: ["Cierre: confirmar recibido", "Acción o solicitud específica", "Quién llama y a quién", "El mensaje / reporte"],
-                    correctOrder: ["Quién llama y a quién", "El mensaje / reporte", "Acción o solicitud específica", "Cierre: confirmar recibido"],
+                    exerciseType: "multiple",
+                    question: "¿Cuál es el TERCER paso de la estructura de un mensaje radial?",
+                    options: [
+                        "Identificar quién llama y a quién",
+                        "El mensaje o reporte de la situación",
+                        "La acción o solicitud específica",
+                        "El cierre confirmando que fue recibido"
+                    ],
+                    correctIndex: 2,
+                    explanation: "Estructura de 4 pasos: 1) Quién llama a quién. 2) El mensaje/reporte. 3) La acción o solicitud. 4) Cierre (confirmación de recibido).",
                     points: 15
                 },
                 {
@@ -554,11 +596,16 @@ const COURSE_DATA = {
                 },
                 {
                     type: "exercise",
-                    exerciseType: "text",
-                    question: "Redacta una minuta breve para el siguiente caso: A las 2AM detectas por cámara que alguien salta la cerca perimetral de una bodega.",
-                    keywords: ["fecha", "hora", "2", "camara", "cerca", "perime", "bodega", "supervis", "polic", "video", "salt"],
-                    minKeywords: 4,
-                    correctAnswer: "Fecha: [hoy] — Hora: 02:00 — OMT: [tu nombre]. Evento: Se detecta por CCTV individuo saltando cerca perimetral de bodega. Acción: Se notificó a supervisor, se despachó policía, se extrajo video de la cámara correspondiente.",
+                    exerciseType: "multiple",
+                    question: "Una minuta de emergencia es válida como evidencia legal cuando incluye obligatoriamente:",
+                    options: [
+                        "Solo la descripción general del evento, sin fechas ni nombres",
+                        "Fecha, hora exacta, descripción del evento, acciones tomadas y personas notificadas",
+                        "El nombre del supervisor y la firma del gerente de la empresa",
+                        "El número de cámaras que grabaron el evento y la marca del equipo"
+                    ],
+                    correctIndex: 1,
+                    explanation: "Una minuta completa responde las 5W: ¿Qué? ¿Quién? ¿Cuándo? (hora exacta) ¿Dónde? ¿Cómo? + acciones tomadas + personas notificadas. Sin estos datos, no sirve como evidencia.",
                     points: 20
                 },
                 {

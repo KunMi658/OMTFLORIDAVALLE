@@ -589,6 +589,9 @@ const ProfControl = {
     this.activityActive = true;
     document.getElementById('btn-launch-activity').style.display = 'none';
     document.getElementById('btn-close-activity').style.display = 'block';
+    document.getElementById('prof-responses-panel').style.display = 'block';
+    document.getElementById('prof-resp-list').innerHTML = '';
+    document.getElementById('prof-resp-summary').textContent = 'Esperando respuestas...';
   },
 
   async closeActivity() {
@@ -596,6 +599,7 @@ const ProfControl = {
     this.activityActive = false;
     document.getElementById('btn-launch-activity').style.display = 'block';
     document.getElementById('btn-close-activity').style.display = 'none';
+    document.getElementById('prof-responses-panel').style.display = 'none';
     
     // F3: Make results permanent until professor continues
     const btnContinue = document.getElementById('btn-continue-class');
@@ -644,7 +648,41 @@ const ProfControl = {
   },
 
   updateResponsesView(responses) {
-    // Could add a mini response view in prof panel if needed
+    const panel = document.getElementById('prof-responses-panel');
+    if (!panel || panel.style.display === 'none') return;
+
+    const summaryEl = document.getElementById('prof-resp-summary');
+    const listEl = document.getElementById('prof-resp-list');
+    const count = Object.keys(responses).length;
+
+    // Get current activity to look up correct answer
+    Sync.getActivity().then(activity => {
+      const items = Object.values(responses);
+      if (count === 0) {
+        summaryEl.textContent = 'Esperando respuestas...';
+        listEl.innerHTML = '';
+        return;
+      }
+
+      const correctCount = items.filter(r => r.score > 0).length;
+      summaryEl.innerHTML = `<span style="color:var(--green)">${correctCount} correctas</span> · <span style="color:var(--red)">${count - correctCount} incorrectas</span> · ${count} total`;
+
+      listEl.innerHTML = items.map(r => {
+        const isCorrect = r.score > 0;
+        let answerText = r.answer;
+        if (activity && activity.type === 'multiple' && activity.options && typeof r.answer === 'number') {
+          answerText = `${String.fromCharCode(65 + r.answer)}. ${activity.options[r.answer]}`;
+        }
+        return `<div class="prof-resp-item ${isCorrect ? 'prof-resp-correct' : 'prof-resp-wrong'}">
+          <span class="prof-resp-icon">${isCorrect ? '\u2705' : '\u274c'}</span>
+          <div class="prof-resp-info">
+            <div class="prof-resp-name">${r.studentName.split(' ')[0]}</div>
+            <div class="prof-resp-answer">${answerText}</div>
+          </div>
+          <span class="prof-resp-pts">${r.score > 0 ? '+' + r.score : '0'} pts</span>
+        </div>`;
+      }).join('');
+    });
   },
 
   backToClasses() {

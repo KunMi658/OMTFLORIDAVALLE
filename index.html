@@ -201,9 +201,19 @@
               <button class="btn-close-activity" id="btn-close-hot-seat" onclick="ProfControl.closeHotSeat()" style="display:none; background:#ff6d00; color:#fff;">
                 ✅ Terminar Silla Caliente
               </button>
+              <button class="btn-close-activity" id="btn-close-activity" onclick="ProfControl.closeActivity()" style="display:none;">
+                ⏹ Cerrar Actividad y Ver Resultados
+              </button>
               <button class="btn btn-primary" id="btn-continue-class" onclick="ProfControl.continueAfterResults()" style="display:none; margin-top:10px; width:100%;">
                 ▶ Continuar Clase (Quitar Resultados)
               </button>
+            </div>
+
+            <!-- Respuestas en tiempo real — visible para el profesor -->
+            <div id="prof-responses-panel" class="prof-responses-panel" style="display:none;">
+              <div class="prof-section-title">📨 RESPUESTAS EN TIEMPO REAL</div>
+              <div class="prof-resp-summary" id="prof-resp-summary"></div>
+              <div id="prof-resp-list" class="prof-resp-list"></div>
             </div>
 
             <!-- Estudiantes conectados -->
