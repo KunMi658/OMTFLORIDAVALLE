@@ -149,6 +149,7 @@ const COURSE_DATA = {
             ],
             professorSlides: [
                 {
+                    studentSlideStart: 0,
                     html: `<p class="slide-section">GUÍA PROFESOR · Clase 1 · Apertura (30 min)</p>
             <h2 class="slide-title">¿Qué es un OMT?</h2>
             <div class="prof-tip"><p><strong>🎯 Objetivo:</strong> Que entiendan qué es un OMT y se identifiquen con el rol. Tiempo: 30 min.</p></div>
@@ -159,6 +160,7 @@ const COURSE_DATA = {
             <div class="prof-tip"><p><strong>💡 Tip pedagógico:</strong> Es normal que algunos alumnos piensen que el OMT "solo mira pantallas". Derriba ese mito desde el inicio: "Si un OMT solo mirara pantallas, no necesitaría curso. Lo que ustedes van a aprender es a INTERPRETAR lo que ven, DECIDIR qué hacer, y ACTUAR con protocolo."</p></div>`
                 },
                 {
+                    studentSlideStart: 2,
                     html: `<p class="slide-section">GUÍA PROFESOR · Clase 1 · Marco Legal (45 min)</p>
             <h2 class="slide-title">Marco Legal — Puntos Clave</h2>
             <div class="prof-tip"><p><strong>🎯 Objetivo:</strong> Que sepan las 3 normas fundamentales y POR QUÉ este curso es obligatorio. Tiempo: 45 min. No te extiendas en tecnicismos legales — resúmelo en lenguaje sencillo.</p></div>
@@ -169,6 +171,7 @@ const COURSE_DATA = {
             <div class="prof-tip"><p><strong>💡 Tip:</strong> Si algún alumno pregunta "¿y si ya llevo años trabajando sin curso?", la respuesta es: "Precisamente por eso estás aquí. El decreto 1565 regularizó la obligación. Antes se pasaba por alto, pero ya no."</p></div>`
                 },
                 {
+                    studentSlideStart: 4,
                     html: `<p class="slide-section">GUÍA PROFESOR · Clase 1 · Cadena PREVENIR (1 hora)</p>
             <h2 class="slide-title">Cadena de Acción PREVENIR</h2>
             <div class="prof-tip"><p><strong>🎯 Objetivo:</strong> Este es el CORAZÓN de la clase. Que memoricen los 4 pasos y puedan aplicarlos a cualquier situación. Tiempo: 1 hora con actividad práctica.</p></div>
@@ -178,6 +181,7 @@ const COURSE_DATA = {
             <div class="prof-tip"><p><strong>🎮 Actividad práctica (15 min):</strong><br>1. Pide a un estudiante que invente una situación sospechosa (ej: "un carro desconocido estacionado frente al banco hace 2 horas").<br>2. Pide a OTRO estudiante que aplique los 4 pasos de la cadena.<br>3. El grupo evalúa: ¿Lo hizo bien? ¿Saltó algún paso?<br>4. Repite con 2-3 situaciones diferentes.</p></div>`
                 },
                 {
+                    studentSlideStart: 6,
                     html: `<p class="slide-section">GUÍA PROFESOR · Clase 1 · Funciones + Confidencialidad (1 hora)</p>
             <h2 class="slide-title">Funciones del OMT + Confidencialidad + CCTV</h2>
             <div class="prof-tip"><p><strong>🎯 Objetivo:</strong> Que memoricen las 5 funciones, entiendan la confidencialidad CON SUS MATICES reales, y conozcan los objetivos del CCTV. Tiempo: 1 hora.</p></div>
@@ -327,6 +331,7 @@ const COURSE_DATA = {
             ],
             professorSlides: [
                 {
+                    studentSlideStart: 0,
                     html: `<p class="slide-section">GUÍA PROFESOR · Clase 2 · Apertura (1 hora)</p>
             <h2 class="slide-title">Ecosistema CCTV + DVR vs NVR + ONVIF</h2>
             <div class="prof-tip"><p><strong>🎯 Objetivo:</strong> Que conozcan la diferencia entre DVR y NVR, entiendan ONVIF, y puedan identificar cada tipo de grabador. Tiempo: 1 hora.</p></div>
@@ -338,6 +343,7 @@ const COURSE_DATA = {
             <div class="prof-tip"><p><strong>📖 Historia:</strong> "Un cliente en Pereira compró cámaras baratas por internet de una marca china desconocida. Cuando el instalador intentó conectarlas al NVR Hikvision, no funcionaban porque no eran ONVIF. Tuvo que devolver las 16 cámaras y comprar nuevas. Ahorrarse $200.000 le costó $2 millones en pérdida de tiempo y reproceso. Moraleja: siempre verificar compatibilidad ONVIF."</p></div>`
                 },
                 {
+                    studentSlideStart: 5,
                     html: `<p class="slide-section">GUÍA PROFESOR · Clase 2 · Cámaras (1.5 horas)</p>
             <h2 class="slide-title">Tipos de Cámaras + Ubicaciones</h2>
             <div class="prof-tip"><p><strong>🎯 Objetivo:</strong> Que distingan los 3 tipos de cámaras, sepan cuándo usar cada una, y puedan justificar la ubicación. Tiempo: 1.5 horas incluyendo actividad.</p></div>
@@ -347,6 +353,7 @@ const COURSE_DATA = {
             <div class="prof-tip"><p><strong>🎮 Actividad práctica (20 min):</strong><br>Dibuja en el tablero el plano básico de un banco:<br>• Entrada principal<br>• Cajeros<br>• Bóveda<br>• Parqueadero<br>• Oficinas interiores<br><br>Pregunta: "¿Qué tipo de cámara pondrían en cada zona y POR QUÉ?" Que debatan. La respuesta ideal:<br>• Entrada: Bullet (que la vean, disuade)<br>• Cajeros: Domo (discreta, el cliente no se siente intimidado)<br>• Bóveda: Domo con vista fija<br>• Parqueadero: PTZ (área grande, seguir vehículos)<br>• Oficinas: Domo</p></div>`
                 },
                 {
+                    studentSlideStart: 7,
                     html: `<p class="slide-section">GUÍA PROFESOR · Clase 2 · Infraestructura + Cierre (30 min)</p>
             <h2 class="slide-title">Infraestructura de Red + Cierre</h2>
             <div class="prof-tip"><p><strong>🎯 Objetivo:</strong> Que entiendan PoE y los componentes básicos de red. No necesitan ser ingenieros, solo saber qué hace cada componente. Tiempo: 30 min.</p></div>
@@ -476,6 +483,7 @@ const COURSE_DATA = {
             ],
             professorSlides: [
                 {
+                    studentSlideStart: 0,
                     html: `<p class="slide-section">GUÍA PROFESOR · Clase 3 · El Semáforo (1.5 horas)</p>
             <h2 class="slide-title">El Semáforo del OMT — Clasificación de Señales</h2>
             <div class="prof-tip"><p><strong>🎯 Objetivo:</strong> Esta es la clase MÁS IMPORTANTE del curso. Que memoricen los 3 colores y sus protocolos de memoria. Tiempo total: 4 horas (incluyendo simulaciones).</p></div>
@@ -485,6 +493,7 @@ const COURSE_DATA = {
             <div class="prof-tip"><p><strong>⚠️ POR QUÉ NO se llama en ROJO — explícalo con este caso:</strong><br>"Imaginen una joyería con 3 ladrones armados adentro. Tienen 2 empleados de rehenes. Si suena el teléfono del local, pasan dos cosas: 1) Los ladrones se ponen nerviosos y pueden agredir a los rehenes. 2) Los ladrones descubren que hay monitoreo y pueden destruir las cámaras o escapar más rápido. Tu trabajo NO es intervenir — es coordinar la respuesta DESDE AFUERA para que la policía llegue con toda la información posible."</p></div>`
                 },
                 {
+                    studentSlideStart: 2,
                     html: `<p class="slide-section">GUÍA PROFESOR · Clase 3 · Protocolo ROJO en Detalle (1 hora)</p>
             <h2 class="slide-title">Protocolo ROJO — Paso a Paso + Casos</h2>
             <div class="prof-tip"><p><strong>🎯 Objetivo:</strong> Que aprendan los 5 pasos del protocolo ROJO de memoria y puedan aplicarlos bajo presión.</p></div>
@@ -493,6 +502,7 @@ const COURSE_DATA = {
             <div class="prof-tip"><p><strong>📖 Caso contrario (mala práctica):</strong> "En otra ciudad, un OMT novato recibió señal de robo y su primer instinto fue llamar al local. El ladrón contestó el teléfono, se dio cuenta que había monitoreo, amenazó a los empleados, rompió las cámaras y huyó antes de que llegara la policía. El OMT fue despedido y la empresa perdió al cliente. Todo por una llamada."</p></div>`
                 },
                 {
+                    studentSlideStart: 4,
                     html: `<p class="slide-section">GUÍA PROFESOR · Clase 3 · Simulaciones + Trampas (1.5 horas)</p>
             <h2 class="slide-title">Actividades Prácticas y Trampas</h2>
             <div class="prof-tip"><p><strong>🎯 Objetivo:</strong> Practicar los protocolos con simulaciones realistas. Incluye "trampas" para que aprendan a pensar críticamente. Tiempo: 1.5 horas.</p></div>
@@ -639,6 +649,7 @@ const COURSE_DATA = {
             ],
             professorSlides: [
                 {
+                    studentSlideStart: 0,
                     html: `<p class="slide-section">GUÍA PROFESOR · Clase 4 · Comunicación Radial (1.5 horas)</p>
             <h2 class="slide-title">Comunicación Radial + Código Fonético</h2>
             <div class="prof-tip"><p><strong>🎯 Objetivo:</strong> Que dominen la comunicación por radio: las 3 C, la estructura del mensaje y el código fonético. Tiempo: 1.5 horas con actividades prácticas.</p></div>
@@ -649,6 +660,7 @@ const COURSE_DATA = {
             <div class="prof-tip"><p><strong>🎮 Actividad práctica (30 min):</strong><br>Haz parejas. Uno es el OMT en la central y otro es el Supervisor en terreno. Tú (profesor) les das un escenario y ellos deben comunicarse usando la estructura de 4 pasos.<br><br><strong>Escenario 1:</strong> "Un vehículo sin placas lleva 45 minutos frente a la puerta principal."<br><strong>Escenario 2:</strong> "Detectas por cámara que un empleado se guarda productos en la maleta."<br><strong>Escenario 3:</strong> "Se activó alarma de incendio en el piso 5."<br><br>Evalúa: ¿Usaron las 3 C? ¿Siguieron los 4 pasos? ¿La descripción fue precisa?</p></div>`
                 },
                 {
+                    studentSlideStart: 3,
                     html: `<p class="slide-section">GUÍA PROFESOR · Clase 4 · Informes y Minutas (1.5 horas)</p>
             <h2 class="slide-title">Redacción de Informes + Práctica</h2>
             <div class="prof-tip"><p><strong>🎯 Objetivo:</strong> Que entiendan la importancia legal del informe y puedan redactar una minuta básica correcta. Tiempo: 1.5 horas.</p></div>
@@ -659,6 +671,7 @@ const COURSE_DATA = {
             <div class="prof-tip"><p><strong>📖 Historia de advertencia:</strong> "Un OMT en Cali reportó verbalmente un incidente pero nunca hizo el informe escrito. Semanas después, el cliente demandó a la empresa de seguridad porque dijo que nadie reportó nada. El OMT decía 'yo sí reporté, se lo dije al supervisor por radio'. Pero sin informe escrito, fue como si no hubiera pasado. La empresa perdió el contrato y al OMT lo despidieron. Todo porque no escribió 5 párrafos."</p></div>`
                 },
                 {
+                    studentSlideStart: 7,
                     html: `<p class="slide-section">GUÍA PROFESOR · Clase 4 · Cierre del Curso (1 hora)</p>
             <h2 class="slide-title">Mejores Prácticas + Cierre Ceremonial</h2>
             <div class="prof-tip"><p><strong>🎯 Objetivo:</strong> Cerrar el curso con las 4 reglas de oro, revisar puntuaciones, y hacer un cierre motivacional que los deje orgullosos de su profesión. Tiempo: 1 hora.</p></div>

@@ -9,6 +9,7 @@ import {
 } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js";
 
 const SESSION_KEY = 'omt_session_2024';
+const SESSION_EXPIRY_MS = 2 * 60 * 60 * 1000; // 2 hours of inactivity = session expires
 
 const Sync = {
   listeners: [],
@@ -37,6 +38,31 @@ const Sync = {
     return Date.now() + this.serverTimeOffset;
   },
 
+  // ---- OBTENER sesión actual ----
+  async getSession() {
+    const snap = await get(this.paths.session());
+    return snap.exists() ? snap.val() : null;
+  },
+
+  // ---- Verificar si la sesión expiró (2 horas sin actividad) ----
+  async checkSessionExpired() {
+    const session = await this.getSession();
+    if (!session || !session.active) return true;
+    const now = Date.now(); // use local time, close enough for expiry check
+    const lastUpdate = session.updatedAt || 0;
+    return (now - lastUpdate) > SESSION_EXPIRY_MS;
+  },
+
+  // ---- Auto-limpiar sesión expirada ----
+  async cleanExpiredSession() {
+    const expired = await this.checkSessionExpired();
+    if (expired) {
+      await this.resetSession();
+      return true; // was expired and cleaned
+    }
+    return false; // session is still valid
+  },
+
   // ---- PROFESOR: Iniciar sesión ----
   async initSession() {
     this.initOffset();
@@ -44,9 +70,11 @@ const Sync = {
       active: true,
       classId: null,
       slideIndex: 0,
+      studentSlideIndex: 0,
       mode: 'waiting', // waiting | content | activity | results
       timerEnd: null,
       timerActive: false,
+      startedAt: this.getServerNow(),
       updatedAt: this.getServerNow()
     });
     await set(ref(db, `${SESSION_KEY}/students`), null);
@@ -89,13 +117,21 @@ const Sync = {
   },
 
   // ---- PROFESOR: Silla Caliente ----
-  async launchHotSeat(studentKey, question) {
+  async launchHotSeat(studentKey, question, options, correctIndex) {
+    await set(ref(db, `${SESSION_KEY}/responses`), null);
     await set(this.paths.hotSeat(), {
       active: true,
       studentKey,
       question,
+      options: options || null,
+      correctIndex: correctIndex !== undefined ? correctIndex : null,
+      response: null,
       launchedAt: this.getServerNow()
     });
+  },
+
+  async submitHotSeatResponse(answer) {
+    await update(this.paths.hotSeat(), { response: answer, respondedAt: this.getServerNow() });
   },
 
   async closeHotSeat() {
@@ -153,6 +189,7 @@ const Sync = {
 
   // ---- ESCUCHAR: Estudiantes ----
   listenStudents(callback) {
+
     const unsub = onValue(this.paths.students(), (snap) => {
       const students = {};
       if (snap.exists()) {

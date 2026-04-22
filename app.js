@@ -16,6 +16,18 @@ function showScreen(id) {
   if (el) el.classList.add('active');
 }
 
+// ---- BUG-3 FIX: Mapeo profesor→estudiante ----
+// Dado un índice de studentSlides, encuentra el professorSlide correspondiente
+function getProfGuideForStudentSlide(cls, studentSlideIdx) {
+  if (!cls || !cls.professorSlides) return null;
+  for (let i = cls.professorSlides.length - 1; i >= 0; i--) {
+    if (studentSlideIdx >= (cls.professorSlides[i].studentSlideStart || 0)) {
+      return cls.professorSlides[i];
+    }
+  }
+  return cls.professorSlides[0];
+}
+
 // ========================================
 // APP — Navegación principal
 // ========================================
@@ -62,6 +74,9 @@ const App = {
 
   async reconnect(name, key) {
     document.getElementById('reconnect-banner').style.display = 'none';
+    try {
+      await Sync.registerStudent(name);
+    } catch(e) {}
     StudentLive.init(name, key);
     showScreen('screen-student-live');
   },
@@ -90,9 +105,10 @@ const ProjectorView = {
   timerInterval: null,
   currentClass: null,
   currentSlide: 0,
+  hotSeatActive: false,
 
   init() {
-    Sync.initOffset(); // FIX-1: ensure server time is calibrated for the projector
+    Sync.initOffset();
     Sync.listenSession(session => this.handleSession(session));
     Sync.listenStudents(students => this.updateStudentCount(students));
     Sync.listenActivity(activity => this.handleActivity(activity));
@@ -104,6 +120,9 @@ const ProjectorView = {
     if (!hotSeat || !hotSeat.active) {
       if (this.hotSeatActive) {
         this.hotSeatActive = false;
+        // Clean up any hot seat indicator
+        const indicator = document.getElementById('proj-hotseat-student');
+        if (indicator) indicator.remove();
       }
       return;
     }
@@ -121,21 +140,57 @@ const ProjectorView = {
     document.getElementById('proj-activity-question').textContent = hotSeat.question;
     
     const optionsEl = document.getElementById('proj-activity-options');
-    optionsEl.innerHTML = `
-      <div class="proj-hot-seat-roulette">
-        <div class="roulette-lbl">Seleccionado:</div>
-        <div class="roulette-name animated-name">Buscando...</div>
-      </div>
-    `;
     
+    // BUG-4 FIX: Show options if it's a multiple choice hot seat
+    if (hotSeat.options && hotSeat.options.length > 0) {
+      optionsEl.innerHTML = hotSeat.options.map((opt, i) =>
+        `<div class="proj-option" id="proj-opt-${i}"><span class="proj-opt-letter">${String.fromCharCode(65+i)}</span>${opt}</div>`
+      ).join('');
+    } else {
+      optionsEl.innerHTML = `
+        <div class="proj-hot-seat-roulette">
+          <div class="roulette-lbl">Seleccionado:</div>
+          <div class="roulette-name animated-name">Buscando...</div>
+        </div>
+      `;
+    }
+    
+    // Show selected student after animation
     setTimeout(async () => {
       const students = await Sync.getStudents();
       const s = students[hotSeat.studentKey];
       if (s) {
-        document.querySelector('.roulette-name').textContent = s.name;
-        document.querySelector('.roulette-name').style.color = '#ff6d00';
+        if (!hotSeat.options) {
+          const nameEl = document.querySelector('.roulette-name');
+          if (nameEl) {
+            nameEl.textContent = s.name;
+            nameEl.style.color = '#ff6d00';
+          }
+        }
+        // Show student name indicator
+        const existingIndicator = document.getElementById('proj-hotseat-student');
+        if (!existingIndicator) {
+          const indicator = document.createElement('div');
+          indicator.id = 'proj-hotseat-student';
+          indicator.style.cssText = 'text-align:center; font-size:1.5rem; color:#ff6d00; margin-top:10px; font-weight:700;';
+          indicator.textContent = `🎯 ${s.name}`;
+          optionsEl.parentElement.appendChild(indicator);
+        } else {
+          existingIndicator.textContent = `🎯 ${s.name}`;
+        }
       }
     }, 1500);
+    
+    // Show response when student answers
+    const responseDiv = document.getElementById('proj-responses-live');
+    if (hotSeat.response) {
+      responseDiv.innerHTML = `<div class="proj-responses-header">✅ ¡Respuesta recibida!</div>
+        <div class="proj-response-chips">
+          <div class="proj-response-chip chip-correct">📝 ${hotSeat.response}</div>
+        </div>`;
+    } else {
+      responseDiv.innerHTML = `<div class="proj-responses-header">⏳ Esperando respuesta...</div>`;
+    }
   },
 
   handleSession(session) {
@@ -148,9 +203,11 @@ const ProjectorView = {
       const cls = COURSE_DATA.classes.find(c => c.id === session.classId);
       if (cls) {
         this.currentClass = cls;
-        this.currentSlide = session.slideIndex || 0;
+        // BUG-3 FIX: use studentSlideIndex from session
+        const slideIdx = session.studentSlideIndex !== undefined ? session.studentSlideIndex : (session.slideIndex || 0);
+        this.currentSlide = slideIdx;
         document.getElementById('proj-class-info').textContent = `${cls.icon} ${cls.title}`;
-        this.updateProgress(session.slideIndex, cls.studentSlides.length);
+        this.updateProgress(slideIdx, cls.studentSlides.length);
       }
     }
 
@@ -158,9 +215,12 @@ const ProjectorView = {
       case 'waiting':
         this.showWaiting('Esperando inicio de clase...');
         break;
-      case 'content':
-        this.showContent(session.slideIndex);
+      case 'content': {
+        // BUG-3 FIX: use studentSlideIndex
+        const slideIdx = session.studentSlideIndex !== undefined ? session.studentSlideIndex : (session.slideIndex || 0);
+        this.showContent(slideIdx);
         break;
+      }
       case 'activity':
         // Handled by listenActivity
         break;
@@ -197,8 +257,6 @@ const ProjectorView = {
     if (slide.type === 'info') {
       container.innerHTML = `<div class="proj-info-slide">${slide.html}</div>`;
     } else if (slide.type === 'exercise') {
-      // FIX-3: don't reveal the question while the professor is still explaining.
-      // The question will appear automatically when the professor launches the activity.
       container.innerHTML = `<div class="proj-exercise-preview" style="opacity:0.4">
         <div class="proj-exercise-badge">📖 CLASE EN CURSO</div>
         <div class="proj-exercise-hint">El profesor continúa la explicación...<br>La actividad se lanzará cuando esté listo.</div>
@@ -238,8 +296,6 @@ const ProjectorView = {
     const circumference = 2 * Math.PI * 42;
     circle.style.strokeDasharray = circumference;
 
-    // FIX-1: use the stored timerSeconds from the activity, not a re-derived value
-    // (re-deriving with an un-calibrated offset was causing 150s from a 60s timer)
     const totalSecs = Math.max(1, timerSeconds || 60);
 
     const update = () => {
@@ -273,6 +329,7 @@ const ProjectorView = {
   },
 
   handleResponses(responses) {
+    if (this.hotSeatActive) return; // Don't overwrite hot seat response display
     const container = document.getElementById('proj-responses-live');
     const count = Object.keys(responses).length;
     if (count === 0) { container.innerHTML = ''; return; }
@@ -285,7 +342,6 @@ const ProjectorView = {
       ).join('')}</div>`;
   },
 
-  // Tracks cumulative activity count per session for star calculation
   _activityCount: 0,
 
   async showResultsView() {
@@ -339,7 +395,7 @@ const ProjectorView = {
         </div>
       </div>`;
 
-    // Bar chart — sorted by score desc
+    // BUG-2 FIX: Stars — 0 stars for 0 score (removed Math.max(1,...))
     const maxScore = Math.max(...studentList.map(s => s.score || 0), 1);
     const barHtml = `
       <div class="res-bars-section">
@@ -347,7 +403,6 @@ const ProjectorView = {
         <div class="res-bars-grid">
           ${studentList.sort((a,b) => (b.score||0)-(a.score||0)).map((s, i) => {
             const scorePct = Math.round(((s.score || 0) / maxScore) * 100);
-            const stars = Math.max(1, Math.min(5, Math.round((s.score||0) / maxScore * 5)));
             const r = responses[s.key];
             const isCorrect = r && r.score > 0;
             const barColor = isCorrect ? 'bar-green' : 'bar-red';
@@ -362,7 +417,7 @@ const ProjectorView = {
         </div>
       </div>`;
 
-    // Student expandable cards
+    // Student expandable cards — BUG-2 FIX: proper stars
     const cardsHtml = `
       <div class="res-cards-section">
         <div class="res-cards-title">👥 Detalle por estudiante — toca para ver su respuesta</div>
@@ -370,7 +425,8 @@ const ProjectorView = {
           ${studentList.map((s, i) => {
             const r = responses[s.key];
             const isCorrect = r && r.score > 0;
-            const starCount = Math.max(1, Math.min(5, Math.round((s.score||0) / maxScore * 5)));
+            // BUG-2 FIX: 0 score = 0 stars. No minimum of 1.
+            const starCount = (s.score || 0) === 0 ? 0 : Math.min(5, Math.round((s.score||0) / maxScore * 5));
             const stars = '⭐'.repeat(starCount) + '☆'.repeat(5 - starCount);
 
             let answerDetail = '';
@@ -381,14 +437,14 @@ const ProjectorView = {
               const correctAnswer = activity.options[activity.correctIndex];
               answerDetail = `
                 <div class="res-card-answer ${isCorrect ? 'answer-correct' : 'answer-wrong'}">
-                  <div class="res-card-answer-label:">Su respuesta:</div>
+                  <div class="res-card-answer-label">Su respuesta:</div>
                   <div class="res-card-answer-text">${String.fromCharCode(65 + r.answer)}. ${studentAnswer}</div>
                   ${!isCorrect ? `<div class="res-card-correct-show">✅ Correcta: ${String.fromCharCode(65 + activity.correctIndex)}. ${correctAnswer}</div>` : ''}
                 </div>`;
             } else if (r.type === 'text') {
               answerDetail = `
                 <div class="res-card-answer ${isCorrect ? 'answer-correct' : 'answer-wrong'}">
-                  <div class="res-card-answer-label:">Su respuesta:</div>
+                  <div class="res-card-answer-label">Su respuesta:</div>
                   <div class="res-card-answer-text">"${r.answer}"</div>
                 </div>`;
             }
@@ -475,7 +531,7 @@ const ProjectorView = {
 // ========================================
 const ProfControl = {
   currentClass: null,
-  currentSlide: 0,
+  currentSlide: 0, // BUG-3 FIX: Now indexes into studentSlides
   selectedTimer: 20,
   activityActive: false,
 
@@ -506,8 +562,9 @@ const ProfControl = {
   async selectClass(id) {
     this.currentClass = COURSE_DATA.classes.find(c => c.id === id);
     if (!this.currentClass) return;
-    this.currentSlide = 0;
-    await Sync.updateSession({ classId: id, slideIndex: 0, mode: 'content' });
+    this.currentSlide = 0; // BUG-3 FIX: index into studentSlides
+    // BUG-3 FIX: Send both slideIndex and studentSlideIndex
+    await Sync.updateSession({ classId: id, slideIndex: 0, studentSlideIndex: 0, mode: 'content' });
     document.getElementById('prof-class-selector').style.display = 'none';
     document.getElementById('prof-lesson-panel').style.display = 'block';
     document.getElementById('prof-current-class-info').innerHTML =
@@ -515,21 +572,21 @@ const ProfControl = {
     this.renderProfSlide();
   },
 
+  // BUG-3 FIX: Professor now navigates studentSlides and sees matching professor guide
   renderProfSlide() {
-    const profSlides = this.currentClass.professorSlides;
     const studSlides = this.currentClass.studentSlides;
-    const total = profSlides.length;
+    const total = studSlides.length;
     const idx = this.currentSlide;
 
     document.getElementById('prof-slide-info').textContent = `${idx + 1} / ${total}`;
     document.getElementById('prof-btn-prev').disabled = idx === 0;
     document.getElementById('prof-btn-next').disabled = idx === total - 1;
 
-    // Guía del profesor
-    const profSlide = profSlides[idx];
-    document.getElementById('prof-guide-content').innerHTML = profSlide ? profSlide.html : '';
+    // Find the matching professor guide for this student slide
+    const profGuide = getProfGuideForStudentSlide(this.currentClass, idx);
+    document.getElementById('prof-guide-content').innerHTML = profGuide ? profGuide.html : '<p>Continúa la explicación...</p>';
 
-    // Verificar si el slide de estudiante correspondiente es ejercicio
+    // Check if current student slide is an exercise
     const studSlide = studSlides[idx];
     const actLauncher = document.getElementById('prof-activity-launcher');
     if (studSlide && studSlide.type === 'exercise') {
@@ -538,18 +595,22 @@ const ProfControl = {
       // Reset buttons
       document.getElementById('btn-launch-activity').style.display = 'block';
       document.getElementById('btn-close-activity').style.display = 'none';
+      document.getElementById('btn-hot-seat').style.display = 'block';
+      document.getElementById('btn-close-hot-seat').style.display = 'none';
       this.activityActive = false;
     } else {
       actLauncher.style.display = 'none';
     }
   },
 
+  // BUG-3 FIX: Navigate studentSlides
   async nextSlide() {
     if (!this.currentClass) return;
-    const total = this.currentClass.professorSlides.length;
+    const total = this.currentClass.studentSlides.length;
     if (this.currentSlide < total - 1) {
       this.currentSlide++;
-      await Sync.updateSession({ slideIndex: this.currentSlide, mode: 'content' });
+      // Send studentSlideIndex for projector/students
+      await Sync.updateSession({ slideIndex: this.currentSlide, studentSlideIndex: this.currentSlide, mode: 'content' });
       this.renderProfSlide();
     }
   },
@@ -557,7 +618,7 @@ const ProfControl = {
   async prevSlide() {
     if (this.currentSlide > 0) {
       this.currentSlide--;
-      await Sync.updateSession({ slideIndex: this.currentSlide, mode: 'content' });
+      await Sync.updateSession({ slideIndex: this.currentSlide, studentSlideIndex: this.currentSlide, mode: 'content' });
       this.renderProfSlide();
     }
   },
@@ -589,6 +650,7 @@ const ProfControl = {
     this.activityActive = true;
     document.getElementById('btn-launch-activity').style.display = 'none';
     document.getElementById('btn-close-activity').style.display = 'block';
+    document.getElementById('btn-hot-seat').style.display = 'none';
     document.getElementById('prof-responses-panel').style.display = 'block';
     document.getElementById('prof-resp-list').innerHTML = '';
     document.getElementById('prof-resp-summary').textContent = 'Esperando respuestas...';
@@ -599,6 +661,7 @@ const ProfControl = {
     this.activityActive = false;
     document.getElementById('btn-launch-activity').style.display = 'block';
     document.getElementById('btn-close-activity').style.display = 'none';
+    document.getElementById('btn-hot-seat').style.display = 'block';
     document.getElementById('prof-responses-panel').style.display = 'none';
     
     // F3: Make results permanent until professor continues
@@ -609,10 +672,10 @@ const ProfControl = {
   async continueAfterResults() {
     const btnContinue = document.getElementById('btn-continue-class');
     if (btnContinue) btnContinue.style.display = 'none';
-    await Sync.updateSession({ mode: 'content', slideIndex: this.currentSlide });
+    await Sync.updateSession({ mode: 'content', slideIndex: this.currentSlide, studentSlideIndex: this.currentSlide });
   },
 
-  // F4: Silla Caliente
+  // BUG-4 FIX: Silla Caliente — pass full question data
   async launchHotSeat() {
     const students = await Sync.getStudents();
     const list = Object.values(students).filter(s => s.online);
@@ -620,12 +683,23 @@ const ProfControl = {
     
     const randomStudent = list[Math.floor(Math.random() * list.length)];
     const slide = this.currentClass.studentSlides[this.currentSlide];
-    const question = slide && slide.type === 'exercise' ? slide.question : "Pregunta sorpresa de atención.";
     
-    await Sync.launchHotSeat(randomStudent.key, question);
+    let question, options, correctIndex;
+    if (slide && slide.type === 'exercise') {
+      question = slide.question;
+      if (slide.exerciseType === 'multiple' && slide.options) {
+        options = slide.options;
+        correctIndex = slide.correctIndex;
+      }
+    } else {
+      question = "Pregunta sorpresa de atención: ¿Qué hemos aprendido hasta ahora?";
+    }
+    
+    await Sync.launchHotSeat(randomStudent.key, question, options || null, correctIndex);
     this.activityActive = true;
     document.getElementById('btn-hot-seat').style.display = 'none';
     document.getElementById('btn-close-hot-seat').style.display = 'block';
+    document.getElementById('btn-launch-activity').style.display = 'none';
   },
 
   async closeHotSeat() {
@@ -633,6 +707,7 @@ const ProfControl = {
     this.activityActive = false;
     document.getElementById('btn-hot-seat').style.display = 'block';
     document.getElementById('btn-close-hot-seat').style.display = 'none';
+    document.getElementById('btn-launch-activity').style.display = 'block';
   },
 
   updateStudentList(students) {
@@ -708,11 +783,14 @@ const StudentLive = {
   key: '',
   answered: false,
   timerInterval: null,
+  hotSeatActive: false,
+  lastSession: null,
 
   init(name, key) {
     this.name = name;
     this.key = key;
     this.answered = false;
+    this.hotSeatActive = false;
     document.getElementById('student-name-badge').textContent = `🎓 ${name.split(' ')[0]}`;
     document.getElementById('student-score-badge').textContent = '⭐ 0 pts';
 
@@ -724,6 +802,7 @@ const StudentLive = {
     Sync.listenHotSeat(hotSeat => this.handleHotSeat(hotSeat));
   },
 
+  // BUG-4 FIX: Complete rewrite of hot seat handler
   handleHotSeat(hotSeat) {
     if (!hotSeat || !hotSeat.active) {
       if (this.hotSeatActive) {
@@ -735,9 +814,11 @@ const StudentLive = {
     }
     
     this.hotSeatActive = true;
+    this.answered = false; // BUG-4 FIX: Always reset answered for hot seat
+    
     if (hotSeat.studentKey === this.key) {
-      this.answered = false; // FIX: reset so a prior activity answer doesn't block submission
-      // Play sound
+      // This student is selected!
+      // Play alert sound
       try {
         const ctx = new (window.AudioContext || window.webkitAudioContext)();
         const osc = ctx.createOscillator();
@@ -751,13 +832,26 @@ const StudentLive = {
       document.querySelector('#sl-activity .sl-activity-badge').innerHTML = `🔥 SILLA CALIENTE`;
       document.querySelector('#sl-activity .sl-activity-badge').style.background = '#ff6d00';
       document.getElementById('sl-question').textContent = "¡Te toca a ti! " + hotSeat.question;
-      document.getElementById('sl-options').innerHTML = '';
-      document.getElementById('sl-answered-msg').style.display = 'none'; // FIX: hide any previous answer feedback
-      document.getElementById('sl-text-area').style.display = 'block';
-      document.getElementById('sl-text-input').value = '';
+      document.getElementById('sl-answered-msg').style.display = 'none';
       document.getElementById('sl-timer-display').textContent = '∞';
       document.getElementById('sl-timer-display').style.color = '#ff6d00';
+      
+      // BUG-4 FIX: Show multiple choice options if available
+      if (hotSeat.options && hotSeat.options.length > 0) {
+        document.getElementById('sl-text-area').style.display = 'none';
+        document.getElementById('sl-options').innerHTML = hotSeat.options.map((opt, i) =>
+          `<button class="sl-option-btn" onclick="StudentLive.submitHotSeatMultiple(${i})">
+            <span class="sl-opt-letter">${String.fromCharCode(65+i)}</span>
+            <span class="sl-opt-text">${opt}</span>
+          </button>`
+        ).join('');
+      } else {
+        document.getElementById('sl-options').innerHTML = '';
+        document.getElementById('sl-text-area').style.display = 'block';
+        document.getElementById('sl-text-input').value = '';
+      }
     } else {
+      // Another student is on the hot seat
       this.showState('sl-listening');
       document.getElementById('sl-topic').textContent = `🔥 Silla Caliente activa`;
       document.querySelector('.sl-instruction').textContent = `Esperando respuesta de otro estudiante...`;
@@ -782,8 +876,15 @@ const StudentLive = {
         if (session.classId !== null) {
           const cls = COURSE_DATA.classes.find(c => c.id === session.classId);
           if (cls) {
-            const slide = cls.studentSlides[session.slideIndex || 0];
+            // BUG-3 FIX: use studentSlideIndex
+            const slideIdx = session.studentSlideIndex !== undefined ? session.studentSlideIndex : (session.slideIndex || 0);
+            const slide = cls.studentSlides[slideIdx];
             document.getElementById('sl-topic').textContent = cls.title;
+            if (slide && slide.type === 'info') {
+              document.querySelector('.sl-instruction').textContent = 'Sigue la clase en la pantalla grande';
+            } else if (slide && slide.type === 'exercise') {
+              document.querySelector('.sl-instruction').textContent = 'El profesor lanzará una actividad pronto...';
+            }
           }
         }
         break;
@@ -798,10 +899,13 @@ const StudentLive = {
   },
 
   handleActivity(activity) {
+    if (this.hotSeatActive) return;
     if (!activity || !activity.active) return;
     if (this.answered) return;
 
     this.showState('sl-activity');
+    document.querySelector('#sl-activity .sl-activity-badge').innerHTML = `⚡ ¡RESPONDE AHORA!`;
+    document.querySelector('#sl-activity .sl-activity-badge').style.background = 'var(--accent, #6c5ce7)';
     document.getElementById('sl-question').textContent = activity.question;
     document.getElementById('sl-answered-msg').style.display = 'none';
 
@@ -889,6 +993,53 @@ const StudentLive = {
     }
   },
 
+  // BUG-4 FIX: Hot seat multiple choice submission
+  async submitHotSeatMultiple(optionIdx) {
+    if (this.answered) return;
+    this.answered = true;
+
+    // Get current hot seat data
+    const hotSeatSnap = await new Promise((resolve) => {
+      const unsub = Sync.listenHotSeat(data => {
+        resolve(data);
+        // Note: listener stays registered but that's OK, it will be cleaned on next init
+      });
+    });
+    
+    // Submit response to hotSeat node
+    const answerText = hotSeatSnap && hotSeatSnap.options 
+      ? `${String.fromCharCode(65 + optionIdx)}. ${hotSeatSnap.options[optionIdx]}`
+      : `Opción ${String.fromCharCode(65 + optionIdx)}`;
+    await Sync.submitHotSeatResponse(answerText);
+    
+    // Check correctness and award points
+    const isCorrect = hotSeatSnap && hotSeatSnap.correctIndex === optionIdx;
+    if (isCorrect) {
+      await Sync.addScore(this.key, 15); // Hot seat bonus points
+    }
+
+    // Show feedback
+    document.querySelectorAll('.sl-option-btn').forEach((btn, i) => {
+      btn.disabled = true;
+      if (hotSeatSnap && i === hotSeatSnap.correctIndex) btn.classList.add('sl-opt-correct');
+      else if (i === optionIdx && !isCorrect) btn.classList.add('sl-opt-wrong');
+    });
+
+    document.getElementById('sl-answered-msg').style.display = 'block';
+    document.getElementById('sl-answered-msg').textContent = isCorrect
+      ? '✅ ¡Correcto! +15 puntos (Silla Caliente)'
+      : '❌ Incorrecto — ¡a repasar!';
+    document.getElementById('sl-answered-msg').className =
+      `sl-answered-msg ${isCorrect ? 'sl-correct' : 'sl-wrong'}`;
+
+    // Update badge
+    const snap = await Sync.getStudents();
+    if (snap[this.key]) {
+      document.getElementById('student-score-badge').textContent = `⭐ ${snap[this.key].score} pts`;
+    }
+  },
+
+  // BUG-2 & BUG-4 FIX: Text submissions
   async submitText() {
     if (this.answered) return;
     const text = document.getElementById('sl-text-input').value.trim();
@@ -896,28 +1047,26 @@ const StudentLive = {
 
     this.answered = true;
 
-    // FIX-2: In hot-seat mode there is no active "activity" in Firebase, so we
-    // submit directly without requiring one. For normal text activities we still
-    // use the activity points for scoring.
-    const activity = await Sync.getActivity();
-    const score = activity
-      ? (text.length >= 10 ? Math.round((activity.points || 10) * 0.5) : 0)
-      : 0; // hot-seat: teacher evaluates verbally, no automatic score
-
-    await Sync.submitResponse(this.key, this.name, {
-      answer: text,
-      score,
-      type: 'text'
-    });
-
-    if (score > 0) await Sync.addScore(this.key, score);
-
-    document.getElementById('sl-text-area').style.display = 'none';
-    document.getElementById('sl-answered-msg').style.display = 'block';
-    document.getElementById('sl-answered-msg').textContent = this.hotSeatActive
-      ? '✅ Respuesta enviada. El profesor la leerá en voz alta.'
-      : '✅ Respuesta enviada. El profesor la revisará.';
-    document.getElementById('sl-answered-msg').className = 'sl-answered-msg sl-sent';
+    if (this.hotSeatActive) {
+      // BUG-4 FIX: Hot seat text submission — submit to hotSeat node, no auto-scoring
+      await Sync.submitHotSeatResponse(text);
+      document.getElementById('sl-text-area').style.display = 'none';
+      document.getElementById('sl-answered-msg').style.display = 'block';
+      document.getElementById('sl-answered-msg').textContent = '✅ Respuesta enviada. El profesor la leerá en voz alta.';
+      document.getElementById('sl-answered-msg').className = 'sl-answered-msg sl-sent';
+    } else {
+      // BUG-2 FIX: Normal text activity — score is 0 (teacher evaluates manually)
+      // No auto-scoring based on text length
+      await Sync.submitResponse(this.key, this.name, {
+        answer: text,
+        score: 0, // BUG-2 FIX: No auto-points for text, teacher reviews verbally
+        type: 'text'
+      });
+      document.getElementById('sl-text-area').style.display = 'none';
+      document.getElementById('sl-answered-msg').style.display = 'block';
+      document.getElementById('sl-answered-msg').textContent = '✅ Respuesta enviada. El profesor la revisará.';
+      document.getElementById('sl-answered-msg').className = 'sl-answered-msg sl-sent';
+    }
   },
 
   async showResultsState() {
@@ -947,29 +1096,48 @@ const StudentLive = {
 };
 
 // ========================================
-// INIT — Keyboard events
+// INIT — Keyboard events + Session expiry check
 // ========================================
-document.addEventListener('DOMContentLoaded', () => {
-  // Bug 1: Reconexión
+document.addEventListener('DOMContentLoaded', async () => {
+  // BUG-1 FIX: Check session expiry on startup (2 hours of inactivity)
+  try {
+    Sync.initOffset();
+    const wasExpired = await Sync.cleanExpiredSession();
+    if (wasExpired) {
+      // Session was expired (>2 hours inactive), cleaned up
+      localStorage.removeItem('omt_student_name');
+      localStorage.removeItem('omt_student_key');
+      console.log('[OMT] Sesión expirada limpiada automáticamente');
+    }
+  } catch(e) {
+    console.warn('[OMT] Error verificando sesión:', e);
+  }
+
+  // BUG-5 FIX: Reconnection — only if session is active and NOT expired
   const savedName = localStorage.getItem('omt_student_name');
   const savedKey = localStorage.getItem('omt_student_key');
   
   if (savedName && savedKey) {
-    Sync.initOffset();
     Sync.listenSession(session => {
+      const banner = document.getElementById('reconnect-banner');
       if (session && session.active) {
-        const banner = document.getElementById('reconnect-banner');
-        if (banner && banner.style.display !== 'none') {
+        if (banner && (banner.style.display !== 'block')) {
           banner.style.display = 'flex';
+          const safeName = savedName.replace(/'/g, "\\'");
           banner.innerHTML = `
             <div class="reconnect-box">
               <p>Clase en curso detectada.</p>
               <p><strong>¿Deseas continuar como ${savedName.split(' ')[0]}?</strong></p>
-              <button class="btn btn-primary" style="margin-bottom:8px;" onclick="App.reconnect('${savedName}', '${savedKey}')">▶ Continuar Clase</button>
+              <button class="btn btn-primary" style="margin-bottom:8px;" onclick="App.reconnect('${safeName}', '${savedKey}')">▶ Continuar Clase</button>
               <button class="btn btn-secondary" onclick="App.clearSession()">No, soy otro estudiante</button>
             </div>
           `;
         }
+      } else {
+        // Session is not active, clear saved student data
+        localStorage.removeItem('omt_student_name');
+        localStorage.removeItem('omt_student_key');
+        if (banner) banner.style.display = 'none';
       }
     });
   }
@@ -986,3 +1154,4 @@ document.addEventListener('DOMContentLoaded', () => {
 window.App = App;
 window.ProfControl = ProfControl;
 window.StudentLive = StudentLive;
+window.ProjectorView = ProjectorView; // BUG FIX: Was missing, needed for toggleCard onclick
