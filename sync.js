@@ -24,6 +24,7 @@ const Sync = {
     responses: () => ref(db, `${SESSION_KEY}/responses`),
     response: (key) => ref(db, `${SESSION_KEY}/responses/${key}`),
     hotSeat: () => ref(db, `${SESSION_KEY}/hotSeat`),
+    kicked: (key) => ref(db, `${SESSION_KEY}/kicked/${key}`)
   },
 
   // ---- TIEMPO REAL SERVIDOR ----
@@ -81,6 +82,7 @@ const Sync = {
     await set(ref(db, `${SESSION_KEY}/activity`), null);
     await set(ref(db, `${SESSION_KEY}/responses`), null);
     await set(this.paths.hotSeat(), null);
+    await set(ref(db, `${SESSION_KEY}/kicked`), null);
   },
   // ---- PROFESOR: Resetear sesión ----
   async resetSession() {
@@ -149,6 +151,8 @@ const Sync = {
       online: true,
       joinedAt: this.getServerNow()
     });
+    // Limpiar bandera de expulsión para permitir reconexión
+    await set(this.paths.kicked(key), null);
     return key;
   },
 
@@ -157,6 +161,22 @@ const Sync = {
     try {
       await update(this.paths.student(key), { online: false });
     } catch (e) {}
+  },
+
+  // ---- PROFESOR: Expulsar Estudiante ----
+  async kickStudent(key) {
+    // Set kicked flag
+    await set(this.paths.kicked(key), true);
+    // Remove from students node
+    await set(this.paths.student(key), null);
+    // Remove their responses just in case
+    await set(this.paths.response(key), null);
+  },
+
+  // ---- PROFESOR: Desbugear Estudiante ----
+  async unbugStudent(key) {
+    // Remove their response to let them answer again
+    await set(this.paths.response(key), null);
   },
 
   // ---- ESTUDIANTE: Enviar respuesta ----
@@ -227,6 +247,15 @@ const Sync = {
         snap.forEach(child => { responses[child.key] = child.val(); });
       }
       callback(responses);
+    });
+    this.listeners.push(unsub);
+    return unsub;
+  },
+
+  // ---- ESCUCHAR: Expulsiones ----
+  listenKicked(key, callback) {
+    const unsub = onValue(this.paths.kicked(key), (snap) => {
+      callback(snap.exists() ? snap.val() : null);
     });
     this.listeners.push(unsub);
     return unsub;

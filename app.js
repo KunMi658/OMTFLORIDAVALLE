@@ -257,9 +257,10 @@ const ProjectorView = {
     if (slide.type === 'info') {
       container.innerHTML = `<div class="proj-info-slide">${slide.html}</div>`;
     } else if (slide.type === 'exercise') {
-      container.innerHTML = `<div class="proj-exercise-preview" style="opacity:0.4">
-        <div class="proj-exercise-badge">📖 CLASE EN CURSO</div>
-        <div class="proj-exercise-hint">El profesor continúa la explicación...<br>La actividad se lanzará cuando esté listo.</div>
+      container.innerHTML = `<div class="proj-exercise-preview">
+        <div class="proj-exercise-badge">⚡ PREPARANDO ACTIVIDAD</div>
+        <div class="proj-exercise-q">${slide.question}</div>
+        <div class="proj-exercise-hint">Atentos... el profesor lanzará las opciones en breve.</div>
       </div>`;
     }
   },
@@ -582,23 +583,25 @@ const ProfControl = {
     document.getElementById('prof-btn-prev').disabled = idx === 0;
     document.getElementById('prof-btn-next').disabled = idx === total - 1;
 
-    // Find the matching professor guide for this student slide
-    const profGuide = getProfGuideForStudentSlide(this.currentClass, idx);
-    document.getElementById('prof-guide-content').innerHTML = profGuide ? profGuide.html : '<p>Continúa la explicación...</p>';
-
-    // Check if current student slide is an exercise
-    const studSlide = studSlides[idx];
     const actLauncher = document.getElementById('prof-activity-launcher');
+    const guideCard = document.getElementById('prof-guide-card');
+    const studSlide = studSlides[idx];
+
     if (studSlide && studSlide.type === 'exercise') {
-      actLauncher.style.display = 'block';
-      document.getElementById('prof-activity-preview').textContent = studSlide.question;
-      // Reset buttons
+      guideCard.style.display = 'none';
+      actLauncher.style.display = 'flex';
+      document.querySelector('.prof-activity-title').textContent = `⚡ EXAMEN DE APRENDIZAJE #${idx + 1}`;
+      document.getElementById('prof-activity-preview').innerHTML = `<strong>${studSlide.question}</strong><br><br><span style="font-size:12px;color:#ff6d00;">Instrucciones: Responde solo tocando la respuesta correcta, si tocas otra se autoseleccionará y no podrás volver a responder.</span>`;
+      
       document.getElementById('btn-launch-activity').style.display = 'block';
       document.getElementById('btn-close-activity').style.display = 'none';
       document.getElementById('btn-hot-seat').style.display = 'block';
       document.getElementById('btn-close-hot-seat').style.display = 'none';
       this.activityActive = false;
     } else {
+      guideCard.style.display = 'block';
+      const profGuide = getProfGuideForStudentSlide(this.currentClass, idx);
+      document.getElementById('prof-guide-content').innerHTML = profGuide ? profGuide.html : '<p>Continúa la explicación...</p>';
       actLauncher.style.display = 'none';
     }
   },
@@ -608,6 +611,7 @@ const ProfControl = {
     if (!this.currentClass) return;
     const total = this.currentClass.studentSlides.length;
     if (this.currentSlide < total - 1) {
+      if (this.activityActive) await this.closeActivity();
       this.currentSlide++;
       // Send studentSlideIndex for projector/students
       await Sync.updateSession({ slideIndex: this.currentSlide, studentSlideIndex: this.currentSlide, mode: 'content' });
@@ -617,6 +621,7 @@ const ProfControl = {
 
   async prevSlide() {
     if (this.currentSlide > 0) {
+      if (this.activityActive) await this.closeActivity();
       this.currentSlide--;
       await Sync.updateSession({ slideIndex: this.currentSlide, studentSlideIndex: this.currentSlide, mode: 'content' });
       this.renderProfSlide();
@@ -718,8 +723,24 @@ const ProfControl = {
         <span class="prof-student-dot online"></span>
         <span class="prof-student-name">${s.name}</span>
         <span class="prof-student-score">⭐ ${s.score || 0}</span>
+        <div class="prof-student-actions">
+          <button class="btn-prof-action" onclick="ProfControl.unbugStudent('${s.key}')" title="Desbugear">🔄</button>
+          <button class="btn-prof-action btn-prof-kick" onclick="ProfControl.kickStudent('${s.key}')" title="Expulsar">❌</button>
+        </div>
       </div>`
     ).join('') || '<div class="prof-no-students">Esperando estudiantes...</div>';
+  },
+
+  async kickStudent(key) {
+    if(confirm('¿Expulsar a este estudiante? No podrá volver a entrar a esta sesión.')) {
+        await Sync.kickStudent(key);
+    }
+  },
+
+  async unbugStudent(key) {
+    if(confirm('¿Permitir que este estudiante vuelva a responder la actividad actual?')) {
+        await Sync.unbugStudent(key);
+    }
   },
 
   updateResponsesView(responses) {
@@ -800,6 +821,24 @@ const StudentLive = {
     });
     Sync.listenActivity(activity => this.handleActivity(activity));
     Sync.listenHotSeat(hotSeat => this.handleHotSeat(hotSeat));
+    
+    Sync.listenKicked(key, isKicked => {
+      if (isKicked) {
+        App.clearSession();
+        alert('Tu sesión anterior fue cerrada para limpiar duplicados. Puedes volver a ingresar tu nombre para reconectarte.');
+        App.goSplash();
+      }
+    });
+
+    Sync.listenResponses(responses => {
+      if (this.answered && !responses[this.key] && !this.hotSeatActive) {
+        // Response was deleted by professor (unbug)
+        this.answered = false;
+        Sync.getActivity().then(activity => {
+            if(activity && activity.active) this.handleActivity(activity);
+        });
+      }
+    });
   },
 
   // BUG-4 FIX: Complete rewrite of hot seat handler
@@ -880,10 +919,18 @@ const StudentLive = {
             const slideIdx = session.studentSlideIndex !== undefined ? session.studentSlideIndex : (session.slideIndex || 0);
             const slide = cls.studentSlides[slideIdx];
             document.getElementById('sl-topic').textContent = cls.title;
+            const instructionEl = document.querySelector('.sl-instruction');
             if (slide && slide.type === 'info') {
-              document.querySelector('.sl-instruction').textContent = 'Sigue la clase en la pantalla grande';
+              const summaryHtml = StudentLive.generateSummary(slide.html, this.key);
+              instructionEl.innerHTML = `
+                <div class="sl-summary-game">
+                  <div class="sl-summary-text blur-effect" id="sl-summary-text">${summaryHtml}</div>
+                  <button class="btn-hold-focus" id="btn-hold-focus">👆 Mantén presionado para leer tus apuntes</button>
+                </div>
+              `;
+              StudentLive.setupFocusMinigame();
             } else if (slide && slide.type === 'exercise') {
-              document.querySelector('.sl-instruction').textContent = 'El profesor lanzará una actividad pronto...';
+              instructionEl.textContent = 'El profesor lanzará una actividad pronto...';
             }
           }
         }
@@ -902,6 +949,12 @@ const StudentLive = {
     if (this.hotSeatActive) return;
     if (!activity || !activity.active) return;
     if (this.answered) return;
+    
+    // Check if the activity is meant for the current slide to avoid old stuck activities
+    if (this.lastSession && this.lastSession.mode === 'content') {
+        const currentIdx = this.lastSession.studentSlideIndex !== undefined ? this.lastSession.studentSlideIndex : this.lastSession.slideIndex;
+        if (activity.slideIdx !== currentIdx) return;
+    }
 
     this.showState('sl-activity');
     document.querySelector('#sl-activity .sl-activity-badge').innerHTML = `⚡ ¡RESPONDE AHORA!`;
@@ -1092,6 +1145,55 @@ const StudentLive = {
       const el = document.getElementById(s);
       if (el) el.style.display = s === id ? 'flex' : 'none';
     });
+  },
+
+  generateSummary(html, key) {
+    const temp = document.createElement('div');
+    temp.innerHTML = html;
+    const highlights = Array.from(temp.querySelectorAll('strong, .slide-highlight, li'))
+      .map(el => el.textContent.trim())
+      .filter(text => text.length > 5);
+      
+    if (highlights.length === 0) return 'Presta atención al proyector.';
+    
+    let hash = 0;
+    for (let i = 0; i < key.length; i++) hash = key.charCodeAt(i) + ((hash << 5) - hash);
+    hash = Math.abs(hash);
+    
+    const numPoints = Math.min(3, highlights.length);
+    const selected = [];
+    for(let i=0; i<numPoints; i++) {
+        const idx = (hash + i) % highlights.length;
+        if(!selected.includes(highlights[idx])) selected.push(highlights[idx]);
+    }
+    if (selected.length === 0) selected.push(highlights[0]); // fallback
+    return selected.map(text => `• ${text}`).join('<br><br>');
+  },
+
+  setupFocusMinigame() {
+    const btn = document.getElementById('btn-hold-focus');
+    const text = document.getElementById('sl-summary-text');
+    if(!btn || !text) return;
+    
+    const reveal = (e) => { 
+        e.preventDefault(); 
+        text.classList.remove('blur-effect'); 
+        btn.classList.add('btn-hold-active');
+        btn.textContent = '👁️ Leyendo...';
+    };
+    const hide = (e) => { 
+        e.preventDefault(); 
+        text.classList.add('blur-effect'); 
+        btn.classList.remove('btn-hold-active');
+        btn.textContent = '👆 Mantén presionado para leer tus apuntes';
+    };
+    
+    btn.addEventListener('touchstart', reveal);
+    btn.addEventListener('touchend', hide);
+    btn.addEventListener('touchcancel', hide);
+    btn.addEventListener('mousedown', reveal);
+    btn.addEventListener('mouseup', hide);
+    btn.addEventListener('mouseleave', hide);
   }
 };
 
